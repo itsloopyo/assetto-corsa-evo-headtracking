@@ -1,0 +1,119 @@
+// Boundary tests for the values HeadTracking.ini feeds into the camera path.
+// Pure functions only - no game, no sockets, no Windows API - so this runs
+// anywhere `pixi run test` runs.
+
+#include "config_sanitize.h"
+
+#include "test_support.h"
+
+#include "cameraunlock/protocol/port_utils.h"
+
+#include <cmath>
+#include <cstdio>
+#include <limits>
+
+using namespace ace_ht;
+using ace_test::Check;
+
+namespace {
+
+const float kNan = std::numeric_limits<float>::quiet_NaN();
+const float kInf = std::numeric_limits<float>::infinity();
+const float kFloatMax = std::numeric_limits<float>::max();
+
+void SmoothingTests() {
+    std::printf("SanitizeSmoothing\n");
+    Check(SanitizeSmoothing(0.0f) == 0.0f, "0 passes through");
+    Check(SanitizeSmoothing(0.15f) == 0.15f, "in-range passes through");
+    Check(SanitizeSmoothing(1.0f) == 1.0f, "1 passes through");
+    // Above 1 the speed lerp goes negative and the view extrapolates instead
+    // of settling.
+    Check(SanitizeSmoothing(5.0f) == 1.0f, "above 1 clamps to 1");
+    Check(SanitizeSmoothing(-2.0f) == 0.0f, "below 0 clamps to 0");
+    Check(SanitizeSmoothing(kNan) == 0.0f, "NaN -> 0");
+    Check(SanitizeSmoothing(kInf) == 0.0f, "Inf -> 0");
+    Check(SanitizeSmoothing(-kInf) == 0.0f, "-Inf -> 0");
+}
+
+void SensitivityTests() {
+    std::printf("SanitizeSensitivity\n");
+    Check(SanitizeSensitivity(1.0f) == 1.0f, "default passes through");
+    Check(SanitizeSensitivity(2.5f) == 2.5f, "boost preserved");
+    Check(SanitizeSensitivity(-1.0f) == -1.0f, "negative (invert) preserved");
+    Check(SanitizeSensitivity(0.0f) == 0.0f, "zero preserved");
+    Check(SanitizeSensitivity(kNan) == 1.0f, "NaN -> 1");
+    Check(SanitizeSensitivity(kInf) == 1.0f, "Inf -> 1");
+    Check(SanitizeSensitivity(-kInf) == 1.0f, "-Inf -> 1");
+
+    // A finite but enormous multiplier overflows the processor's
+    // `angle * sensitivity` to Inf, and sin/cos of that is NaN - which is a NaN
+    // camera transform handed to the engine on every frame.
+    Check(SanitizeSensitivity(kFloatMax) == 100.0f, "absurd magnitude clamps");
+    Check(SanitizeSensitivity(-kFloatMax) == -100.0f, "and clamps when inverted");
+    Check(std::isfinite(SanitizeSensitivity(kFloatMax) * 180.0f),
+          "the clamp keeps a full-range angle finite once scaled");
+}
+
+void PositionLimitTests() {
+    std::printf("SanitizePositionLimit\n");
+    Check(SanitizePositionLimit(0.30f, 0.30f) == 0.30f, "default passes through");
+    Check(SanitizePositionLimit(1.25f, 0.30f) == 1.25f, "large but finite limit preserved");
+    Check(SanitizePositionLimit(0.0f, 0.30f) == 0.0f, "zero (axis pinned) preserved");
+    // A negative limit inverts PositionProcessor's clamp bounds.
+    Check(SanitizePositionLimit(-0.5f, 0.30f) == 0.0f, "negative -> 0");
+    Check(SanitizePositionLimit(kNan, 0.30f) == 0.30f, "NaN -> fallback");
+    Check(SanitizePositionLimit(kInf, 0.20f) == 0.20f, "Inf -> fallback");
+    Check(SanitizePositionLimit(-kInf, 0.40f) == 0.40f, "-Inf -> fallback");
+
+    // A mistyped limit puts the camera outside the world; at the top of the
+    // float range it overflows the transform's translation row to Inf.
+    Check(SanitizePositionLimit(10000.0f, 0.30f) == 10.0f, "absurd limit clamps");
+    Check(SanitizePositionLimit(kFloatMax, 0.30f) == 10.0f, "float max clamps");
+}
+
+void VirtualKeyTests() {
+    std::printf("SanitizeVirtualKey\n");
+    Check(SanitizeVirtualKey(0x22, 0x22) == 0x22, "Page Down passes through");
+    Check(SanitizeVirtualKey(0x01, 0x22) == 0x01, "low bound passes through");
+    Check(SanitizeVirtualKey(0xFE, 0x22) == 0xFE, "high bound passes through");
+    // A key the poller can never see makes the toggle silently do nothing.
+    Check(SanitizeVirtualKey(0x220, 0x22) == 0x22, "above 0xFE -> fallback");
+    Check(SanitizeVirtualKey(0, 0x22) == 0x22, "0 (no key) -> fallback");
+    Check(SanitizeVirtualKey(-1, 0x22) == 0x22, "negative -> fallback");
+}
+
+void UdpPortTests() {
+    std::printf("NormalizeUdpPort (the INI port boundary this mod relies on)\n");
+    bool valid = false;
+
+    Check(cameraunlock::NormalizeUdpPort(4242, 4242, valid) == 4242 && valid,
+          "default port is valid");
+    Check(cameraunlock::NormalizeUdpPort(1024, 4242, valid) == 1024 && valid,
+          "low bound is valid");
+    Check(cameraunlock::NormalizeUdpPort(65535, 4242, valid) == 65535 && valid,
+          "high bound is valid");
+
+    // 70000 & 0xFFFF == 4464: a raw cast to uint16_t would bind a wrong port
+    // and the mod would sit there reporting it was listening.
+    Check(cameraunlock::NormalizeUdpPort(70000, 4242, valid) == 4242 && !valid,
+          "above 65535 -> fallback, not truncated to 4464");
+    Check(cameraunlock::NormalizeUdpPort(0, 4242, valid) == 4242 && !valid,
+          "0 (ephemeral bind) -> fallback");
+    Check(cameraunlock::NormalizeUdpPort(-1, 4242, valid) == 4242 && !valid,
+          "negative -> fallback");
+    Check(cameraunlock::NormalizeUdpPort(80, 4242, valid) == 4242 && !valid,
+          "privileged port -> fallback");
+}
+
+}  // namespace
+
+int main() {
+    std::printf("Assetto Corsa EVO head tracking - config boundary tests\n");
+    std::printf("======================================================\n");
+    SmoothingTests();
+    SensitivityTests();
+    PositionLimitTests();
+    VirtualKeyTests();
+    UdpPortTests();
+    return ace_test::Summary("config boundary");
+}

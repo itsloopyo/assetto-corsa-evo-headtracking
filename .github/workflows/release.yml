@@ -1,0 +1,190 @@
+name: Release
+run-name: "Release ${{ github.ref_name }}"
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Require release announcement prerequisites
+        shell: pwsh
+        env:
+          DISCORD_RELEASE_WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+          LOPARI_APP_ACTIONS_TOKEN: ${{ secrets.LOPARI_APP_ACTIONS_TOKEN }}
+        run: |
+          if (-not $env:DISCORD_RELEASE_WEBHOOK) {
+            Write-Host "::error::DISCORD_RELEASE_WEBHOOK secret is not set - every release must be announced to Discord, so this run is refused before the release is created. Set it with 'gh secret set DISCORD_RELEASE_WEBHOOK --repo ${{ github.repository }}' and re-run."
+            exit 1
+          }
+          $bust = "cb$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())"
+          $mods = (Invoke-RestMethod "https://lopari.app/mods.json?$bust").mods
+          $entry = @($mods) | Where-Object { $_.repo -eq "${{ github.repository }}" }
+          if ($entry -and -not $env:LOPARI_APP_ACTIONS_TOKEN) {
+            Write-Host "::error::${{ github.repository }} is in the Lopari catalog but LOPARI_APP_ACTIONS_TOKEN is not set - the catalog pin can't be synced before the announcement, so the Run in Lopari link would serve the previous release. Set the fine-grained PAT (Actions:write on itsloopyo/lopari.app only) and re-run."
+            exit 1
+          }
+          Write-Host "Release announcement prerequisites present."
+
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Extract version from tag
+        shell: pwsh
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          if ($tag -notmatch '^v(\d+\.\d+\.\d+)$') {
+            Write-Host "::error::Tag '$tag' is not in vX.Y.Z form"
+            exit 1
+          }
+          "MOD_VERSION=$($Matches[1])" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Validate version matches install.cmd
+        shell: pwsh
+        run: |
+          $line = Select-String -Path scripts/install.cmd -Pattern 'set "MOD_VERSION=([0-9]+\.[0-9]+\.[0-9]+)"' | Select-Object -First 1
+          if (-not $line) {
+            Write-Host "::error::Could not find MOD_VERSION in scripts/install.cmd"
+            exit 1
+          }
+          $fileVersion = $line.Matches[0].Groups[1].Value
+          if ($fileVersion -ne $env:MOD_VERSION) {
+            Write-Host "::error::Tag version $($env:MOD_VERSION) does not match install.cmd MOD_VERSION $fileVersion"
+            exit 1
+          }
+          Write-Host "Version $fileVersion matches tag"
+
+      # C++ toolchain for the pixi `package` task's cmake/msbuild build.
+      - name: Setup Visual Studio environment
+        uses: microsoft/setup-msbuild@v3
+
+      # No pixi-managed dependencies here, so the install path's trailing
+      # `pixi list` would exit 1 on the empty environment. See build.yml.
+      - name: Setup pixi
+        uses: prefix-dev/setup-pixi@v0.9.6
+        with:
+          run-install: false
+
+      # Same command as build.yml and developers run - no build logic in YAML.
+      - name: Build and package
+        shell: pwsh
+        run: pixi run package
+
+      - name: Validate packaged manifest
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem release/*-installer.zip | Select-Object -First 1
+          node cameraunlock-core/scripts/validate-manifest.mjs $zip.FullName
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::launcher-manifest.json references sources missing from the installer ZIP"
+            exit 1
+          }
+
+      - name: Generate release notes
+        shell: pwsh
+        run: |
+          & cameraunlock-core/scripts/generate-release-notes.ps1 `
+            -Version $env:MOD_VERSION `
+            -ProjectName "Assetto Corsa EVO Head Tracking" `
+            -ArtifactPaths @('src/', 'cameraunlock-core/', 'scripts/install.cmd', 'scripts/uninstall.cmd') `
+            -OutputFile release-notes.txt
+
+      - name: Find release ZIP
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem release/*-installer.zip | Select-Object -First 1
+          if (-not $installer) {
+            Write-Host "::error::No -installer.zip found in release/"
+            exit 1
+          }
+          "INSTALLER_ZIP=$($installer.FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Create GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create $env:GITHUB_REF_NAME `
+            "$env:INSTALLER_ZIP" `
+            --title "Assetto Corsa EVO Head Tracking $env:GITHUB_REF_NAME" `
+            --notes-file release-notes.txt
+
+      - name: Sync Lopari catalog pin
+        shell: pwsh
+        env:
+          LOPARI_APP_ACTIONS_TOKEN: ${{ secrets.LOPARI_APP_ACTIONS_TOKEN }}
+        run: |
+          $repo = "${{ github.repository }}"
+          $version = "${{ github.ref_name }}" -replace '^v', ''
+          function Get-PinnedVersion {
+            $bust = "cb$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())"
+            $mods = (Invoke-RestMethod "https://lopari.app/mods.json?$bust").mods
+            $entry = @($mods) | Where-Object { $_.repo -eq $repo }
+            if (-not $entry) { return $null }
+            return @{ inCatalog = $true; pinned = $entry.release.pinned.version }
+          }
+          $state = Get-PinnedVersion
+          if (-not $state) {
+            Write-Host "::notice::$repo has no Lopari catalog entry - the announce link will use the /run/ page's GitHub fallback."
+            exit 0
+          }
+          if ($state.pinned -eq $version) {
+            Write-Host "Catalog already pins $version."
+            exit 0
+          }
+          Invoke-RestMethod -Method Post `
+            -Uri 'https://api.github.com/repos/itsloopyo/lopari.app/actions/workflows/update-pins.yml/dispatches' `
+            -Headers @{ Authorization = "Bearer $env:LOPARI_APP_ACTIONS_TOKEN"; Accept = 'application/vnd.github+json' } `
+            -ContentType 'application/json' -Body '{"ref":"main"}'
+          Write-Host "Requested lopari.app catalog re-pin; waiting for $version to go live..."
+          $deadline = [DateTime]::UtcNow.AddMinutes(10)
+          while ([DateTime]::UtcNow -lt $deadline) {
+            Start-Sleep -Seconds 15
+            try {
+              $state = Get-PinnedVersion
+            } catch {
+              # A transient fetch failure is part of what the poll absorbs;
+              # a persistent one runs into the deadline below.
+              continue
+            }
+            if ($state.pinned -eq $version) {
+              Write-Host "Catalog pin is live: $version."
+              exit 0
+            }
+            Write-Host "  still pinned at $($state.pinned)..."
+          }
+          Write-Host "::error::Timed out waiting for lopari.app to pin $version (still $($state.pinned)). Check https://github.com/itsloopyo/lopari.app/actions, then re-run this job - the release exists; only the pin sync and announcement are pending."
+          exit 1
+
+      - name: Announce release to Discord
+        shell: pwsh
+        env:
+          DISCORD_RELEASE_WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+        run: |
+          if (-not $env:DISCORD_RELEASE_WEBHOOK) {
+            Write-Host "::error::DISCORD_RELEASE_WEBHOOK secret is not set - the release was created but not announced. Set it with 'gh secret set DISCORD_RELEASE_WEBHOOK --repo ${{ github.repository }}' and re-run this job."
+            exit 1
+          }
+          $tag  = "${{ github.ref_name }}"
+          $repo = "${{ github.repository }}"
+          $url  = "https://github.com/$repo/releases/tag/$tag"
+          $payload = @{
+            username = 'Mod Releases'
+            embeds   = @(@{
+              title       = "Assetto Corsa EVO Head Tracking $tag"
+              url         = $url
+              description = "A new release of **Assetto Corsa EVO Head Tracking** is live.`n`n**[Download the $tag release]($url)**`n**[Run in Lopari](https://lopari.app/run/?repo=$repo)**"
+              color       = 5814783
+            })
+          } | ConvertTo-Json -Depth 5
+          Invoke-RestMethod -Uri $env:DISCORD_RELEASE_WEBHOOK -Method Post -ContentType 'application/json' -Body $payload
+          Write-Host "Announced $tag to Discord."

@@ -1,0 +1,128 @@
+name: ACE patch watch
+
+# Polls Steam daily for a change in Assetto Corsa EVO's public branch buildid.
+# When the buildid moves, opens an issue with a rederive checklist and commits
+# the new buildid to .github/last-known-build.txt so the next run only fires on
+# a further change. This is the "heads up so I can prep a new release" channel;
+# builds::SelectProfile remains the hard backstop that keeps the mod dormant
+# rather than hooking stale offsets in users' sessions.
+
+on:
+  schedule:
+    - cron: '0 9 * * *'   # daily 09:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: ace-patch-watch
+  cancel-in-progress: false
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Query ACE public buildid via SteamCMD
+        id: query
+        run: |
+          set -euo pipefail
+          docker pull steamcmd/steamcmd:ubuntu-22 >/dev/null
+          OUT=$(docker run --rm steamcmd/steamcmd:ubuntu-22 \
+            +login anonymous \
+            +app_info_update 1 \
+            +app_info_print 3058630 \
+            +quit)
+          # app_info_print emits VDF. Find the "public" branch and grab its
+          # buildid. Layout:
+          #   "branches" { "public" { "buildid" "12345678" ... } ... }
+          NEW_BUILD=$(echo "$OUT" | awk '
+            $1 == "\"public\"" { found=1; next }
+            found && $1 == "\"buildid\"" {
+              gsub(/"/, "", $2); print $2; exit
+            }
+          ')
+          # A buildid is decimal digits and nothing else. Anything else means
+          # the VDF shape moved (or something is injecting into it) - either
+          # way this value reaches a shell, a commit message and an issue
+          # title, so it does not get to be arbitrary text.
+          if [[ ! "${NEW_BUILD:-}" =~ ^[0-9]+$ ]]; then
+            echo "::error::Could not parse a numeric public buildid from SteamCMD output."
+            echo "--- last 100 lines of SteamCMD output ---"
+            echo "$OUT" | tail -100
+            exit 1
+          fi
+          echo "Detected ACE public buildid: $NEW_BUILD"
+          echo "new=$NEW_BUILD" >> "$GITHUB_OUTPUT"
+
+      - name: Compare against last-known buildid
+        id: compare
+        env:
+          NEW: ${{ steps.query.outputs.new }}
+        run: |
+          set -euo pipefail
+          FILE=".github/last-known-build.txt"
+          if [[ -f "$FILE" ]]; then
+            OLD=$(tr -d '[:space:]' < "$FILE")
+          else
+            OLD=""
+          fi
+          echo "old=$OLD" >> "$GITHUB_OUTPUT"
+          if [[ "$NEW" == "$OLD" ]]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "No change. buildid is still $NEW."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "Change detected: '$OLD' -> '$NEW'."
+          fi
+
+      - name: Open issue + record new buildid
+        if: steps.compare.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Through the environment, not ${{ }} interpolation: these values
+          # come from SteamCMD output and a file in the repo, and expression
+          # interpolation would splice them into the script text itself.
+          NEW: ${{ steps.query.outputs.new }}
+          OLD: ${{ steps.compare.outputs.old }}
+        run: |
+          set -euo pipefail
+          OLD_DISPLAY=${OLD:-"(none recorded yet)"}
+
+          mkdir -p .github
+          echo "$NEW" > .github/last-known-build.txt
+
+          gh issue create \
+            --title "ACE patch detected: public buildid $OLD_DISPLAY -> $NEW" \
+            --body "$(cat <<EOF
+          Steam reports a new public build for [Assetto Corsa EVO](https://store.steampowered.com/app/3058630/) (app \`3058630\`).
+
+          - Previous buildid: \`$OLD_DISPLAY\`
+          - New buildid:      \`$NEW\`
+
+          ## Rederive checklist
+
+          1. Update the game via Steam, then quit it cleanly.
+          2. Run \`pixi run check-fingerprint\`. A MATCH means a committed profile still covers this build (asset-only patch, the EXE was not relinked) - close this issue, nothing to do. No match means the EXE changed.
+          3. Most of this mod is not pinned to addresses: the camera vtables are resolved at runtime by RTTI class name (\`CockpitCamera\`, \`DashCamera\`, \`BonnetCamera\`, \`ExternalFixedCamera\`), so a plain recompile of the game usually needs nothing but a new fingerprint. Confirm the two pinned values still hold before shipping:
+             - \`camera_compute_slot\` - the DrivableCamera vtable slot that computes the camera.
+             - \`camera_out_transform\` - byte offset of the 4x4 matrix in the output struct.
+             \`pixi run ghidra-script\` against the new EXE if either moved.
+          4. Add a NEW \`kSteamProfile_YYYYMMDD\` to \`src/builds/steam_offsets.cpp\` and register it at the TOP of \`kKnownProfiles\` in \`src/builds/build_registry.cpp\`. Append only: never edit or delete an existing profile, or every user who has not taken this patch loses head tracking with no way back.
+          5. Smoke-test in a live driving session, not the main menu - the camera compute slot does not fire at the menu, so a clean build-check there proves only that the fingerprint matched.
+          6. Bump version and ship via \`pixi run release\`. CHANGELOG entry is an addition ("adds support for Steam build YYYYMMDD; earlier builds keep working"), not a fix.
+          7. Close this issue once the release is out.
+
+          ---
+          Auto-opened by \`.github/workflows/patch-watch.yml\`.
+          EOF
+          )"
+
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/last-known-build.txt
+          git commit -m "ACE patch watch: record buildid $NEW [skip ci]"
+          git push

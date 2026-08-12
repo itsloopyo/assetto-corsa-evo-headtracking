@@ -1,0 +1,18 @@
+{
+  "schema_version": 2,
+  "mod_info": {
+    "name": "AssettoCorsaEvoHeadTracking",
+    "version": "0.0.0",
+    "game_id": "assetto-corsa-evo"
+  },
+  "strategy": "AsiLoader",
+  "delivery_mode": "manifest",
+
+  "files": [
+    { "source": "vendor/ultimate-asi-loader/dinput8.dll", "target": "dinput8.dll", "backup": true },
+    { "source": "plugins/AssettoCorsaEvoHeadTracking.asi", "target": "AssettoCorsaEvoHeadTracking.asi" }
+  ],
+
+  "runtime_requirements": [],
+  "dependencies": []
+}

@@ -1,0 +1,92 @@
+name: Build
+
+on:
+  push:
+    branches: ['**']
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'LICENSE'
+
+# Reading the repo is all this job does; it publishes nothing back. Without an
+# explicit block the job would inherit whatever the repo/org default is, which
+# on many repos is a read/write token handed to every push on every branch.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and Validate
+    runs-on: windows-latest
+    if: ${{ !startsWith(github.event.head_commit.message, 'Release v') }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      # C++ toolchain for the pixi `package` task's cmake/msbuild build.
+      - name: Setup Visual Studio environment
+        uses: microsoft/setup-msbuild@v3
+
+      # run-install stays off because pixi is only a task runner here - the
+      # build uses system CMake and Visual Studio, so [dependencies] is empty.
+      # The install path ends in `pixi list`, which exits 1 on an environment
+      # with no packages and fails the job before a single task has run.
+      - name: Setup pixi
+        uses: prefix-dev/setup-pixi@v0.9.6
+        with:
+          run-install: false
+
+      # Config-boundary and camera-transform tests, before the build that would
+      # otherwise ship a binary that fails them.
+      - name: Run unit tests
+        shell: pwsh
+        run: pixi run test
+
+      # Build + package through the SAME command a developer runs locally. All
+      # build logic lives in the pixi task chain (cmake configure -> build ->
+      # package); the workflow owns none, so local and CI can't drift.
+      - name: Build and package
+        shell: pwsh
+        run: pixi run package
+
+      # Unzip the installer so upload-artifact doesn't nest a zip in its zip.
+      - name: Stage installer contents for artifact upload
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem release/*-installer.zip -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $zip) {
+            Write-Host "::error::No installer ZIP was produced by 'pixi run package'"
+            exit 1
+          }
+          $dest = "release/artifact-contents"
+          New-Item -ItemType Directory -Path $dest -Force | Out-Null
+          Expand-Archive -Path $zip.FullName -DestinationPath $dest -Force
+          Write-Host "Staged $($zip.Name)" -ForegroundColor Green
+
+      - name: Compute artifact name from ref
+        id: artifact
+        shell: pwsh
+        run: |
+          # GITHUB_HEAD_REF is the source branch on pull_request events; on push
+          # it is empty and GITHUB_REF_NAME is the branch. Using ref_name alone
+          # would name PR artifacts "<n>-merge".
+          $branch = if ($env:GITHUB_HEAD_REF) { $env:GITHUB_HEAD_REF } else { $env:GITHUB_REF_NAME }
+          $sanitized = $branch -replace '[^A-Za-z0-9._-]', '-'
+          echo "name=AssettoCorsaEvoHeadTracking-$sanitized" >> $env:GITHUB_OUTPUT
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: release/artifact-contents/
+          retention-days: 14
+          if-no-files-found: error

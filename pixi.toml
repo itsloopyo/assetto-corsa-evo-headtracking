@@ -1,0 +1,58 @@
+[workspace]
+name = "assetto-corsa-evo-headtracking"
+version = "0.0.0"
+description = "Head tracking mod for Assetto Corsa EVO (Kunos in-house engine)"
+license = "MIT"
+channels = ["conda-forge"]
+platforms = ["win-64"]
+
+[tasks]
+sync = "git submodule update --remote cameraunlock-core"
+
+# No -G: let CMake auto-detect the installed Visual Studio generator. Pinning
+# "Visual Studio 17 2022" broke on CI once the windows runner image moved to
+# VS 2026 (VS 17 absent); auto-detect picks whatever VS the machine has.
+setup = { cmd = """
+    powershell -Command "if (-not (Test-Path 'build')) { cmake -B build -A x64 } else { Write-Host 'Build directory exists, skipping setup' -ForegroundColor Yellow }"
+""" }
+
+build = { cmd = "cmake --build build --config Release", depends-on = ["setup"] }
+build-debug = { cmd = "cmake --build build --config Debug", depends-on = ["setup"] }
+
+clean = { cmd = """
+    powershell -Command "if (Test-Path 'build') { Remove-Item 'build' -Recurse -Force }; Write-Host 'Build artifacts cleaned' -ForegroundColor Green"
+""" }
+
+clean-all = { cmd = """
+    powershell -Command "foreach ($d in @('build','build-tests','release')) { if (Test-Path $d) { Remove-Item $d -Recurse -Force } }; Write-Host 'All build artifacts cleaned' -ForegroundColor Green"
+""" }
+
+# Unit tests: the HeadTracking.ini boundary, the shipped defaults, and the
+# camera transform composition. Builds in build-tests/ so the packaged build/
+# tree never contains a test binary.
+test = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/run-tests.ps1" }
+
+# Bump vendored Ultimate ASI Loader copy. Manual; commit the result.
+update-deps = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/update-deps.ps1" }
+
+package = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1", depends-on = ["build"] }
+
+# Dev loop: build, then copy the .asi + vendored loader straight into the
+# detected game folder. install.cmd is the end-user path and is not run here -
+# it pauses when it isn't given /y, and pixi allocates no stdin to read from.
+install = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1", depends-on = ["build"] }
+
+uninstall = "scripts/uninstall.cmd /y"
+
+release = "powershell -ExecutionPolicy Bypass -File scripts/release.ps1"
+
+# Compare the installed AssettoCorsaEVO.exe PE fingerprint against every build
+# profile in src/builds/. First thing to run when a user reports the dormant
+# "unknown build" log line.
+check-fingerprint = "powershell -ExecutionPolicy Bypass -File scripts/check-fingerprint.ps1"
+
+# Run a Ghidra headless script from scripts/ghidra/ against the game EXE.
+ghidra-script = "powershell -ExecutionPolicy Bypass -File scripts/ghidra-headless.ps1"
+
+[dependencies]
+# No pixi-managed deps - relies on system CMake + Visual Studio.

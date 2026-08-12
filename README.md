@@ -1,0 +1,219 @@
+# Assetto Corsa EVO Head Tracking
+
+An unofficial head tracking mod for Assetto Corsa EVO that moves the driving cameras with your head while the car and your inputs stay untouched, driven by any OpenTrack-compatible tracker and with no VR headset required.
+
+![Mod GIF](https://raw.githubusercontent.com/itsloopyo/assetto-corsa-evo-headtracking/main/assets/readme-clip.gif)
+
+## Features
+
+- **Decoupled view and driving** - your head moves the camera; the car, the physics and every input stay untouched
+- **6DOF positional tracking** - lean into an apex, peek round the A-pillar, check your mirrors
+- **Works in every driving view** - cockpit, dash, bonnet, fixed external and the chase cam
+
+## Requirements
+
+- [Assetto Corsa EVO](https://store.steampowered.com/app/3058630/) on Steam, a legitimately purchased copy. Note: The game's TrackIR tab in controller settings is not implemented and is unrelated to this mod.
+- A head tracker that speaks the [OpenTrack](https://github.com/opentrack/opentrack) UDP protocol: OpenTrack itself with any of its inputs (webcam, TrackIR, Tobii, SteamVR), or a free phone app such as [Headcam](https://headcam.app), which turns any phone into a tracker.
+- Windows 10 or 11, 64-bit.
+
+## Installation
+
+1. Download the installer ZIP from the [Releases](https://github.com/itsloopyo/assetto-corsa-evo-headtracking/releases) page.
+2. Extract it anywhere.
+3. Double-click `install.cmd`. It finds the game and drops the loader and the mod next to `AssettoCorsaEVO.exe`.
+4. Configure OpenTrack (or your phone app) to output UDP to `127.0.0.1` port `4242`.
+5. Launch the game. The mod writes a default `HeadTracking.ini` and a log next to the EXE on first run.
+
+If the installer cannot find your game, point it at the install folder yourself. Either set the environment variable:
+
+```powershell
+$env:ASSETTO_CORSA_EVO_PATH = "D:\Games\Assetto Corsa EVO"
+```
+
+or pass the path as the first argument:
+
+```powershell
+install.cmd "D:\Games\Assetto Corsa EVO"
+```
+
+### Manual Installation
+
+Copy two files into the Assetto Corsa EVO folder, the one containing `AssettoCorsaEVO.exe`:
+
+1. `vendor/ultimate-asi-loader/dinput8.dll` to `dinput8.dll`. This is the Ultimate ASI Loader; skip this step if you already run an ASI loader for this game.
+2. `plugins/AssettoCorsaEvoHeadTracking.asi` to `AssettoCorsaEvoHeadTracking.asi`.
+
+The mod writes `HeadTracking.ini` next to the EXE on first launch.
+
+## Setting Up OpenTrack
+
+1. Input: whatever tracker you use.
+2. Output: **UDP over network**.
+3. Address `127.0.0.1`, port `4242`.
+4. Start tracking before or after launching the game; the mod picks it up whenever data starts arriving.
+
+### VR Headset Setup
+
+1. Connect the headset to the PC over Air Link or Virtual Desktop and start SteamVR.
+2. In OpenTrack, set Input to **SteamVR** and pick the headset as the tracked device.
+3. Set Output to UDP over network, `127.0.0.1` port `4242`.
+4. Wear the headset on your forehead or hold it steady facing the monitor, then press `Home` in game to recenter.
+
+### Webcam Setup
+
+1. In OpenTrack, set Input to **neuralnet tracker** and select your webcam.
+2. Set Output to UDP over network, `127.0.0.1` port `4242`.
+3. Sit in your normal driving position and press `Home` in game to recenter.
+
+### Phone App Setup
+
+Point the app at your PC's LAN IP on UDP port `4242`. Apps that smooth their own output can send straight to the mod with no OpenTrack in the chain. I made [Headcam](https://headcam.app) to ensure high quality tracking was available, free for anybody with a phone. If you want OpenTrack's curve mapping and filters, send the phone to OpenTrack's UDP input instead and let OpenTrack forward to `127.0.0.1:4242`.
+
+## Controls
+
+Two equivalent binding sets, use whichever your keyboard has:
+
+| Action              | Nav-cluster | Chord           |
+|---------------------|-------------|-----------------|
+| Recenter            | `Home`      | `Ctrl+Shift+T`  |
+| Toggle tracking     | `End`       | `Ctrl+Shift+Y`  |
+| Cycle tracking mode | `Page Up`   | `Ctrl+Shift+G`  |
+| Toggle yaw mode     | `Page Down` | `Ctrl+Shift+H`  |
+
+`Page Up` / `Ctrl+Shift+G` cycles tracking mode:
+
+1. Normal head-tracked gameplay
+2. Positional tracking disabled, rotational tracking enabled
+3. Rotational tracking disabled, positional tracking enabled
+4. Back to normal
+
+`Page Down` / `Ctrl+Shift+H` switches which axis your head turns the view about:
+
+- **World** (the default): the axis stays level with the horizon, so looking down at the pedals and turning your head pans across the floor, and a banked corner does not tilt it.
+- **Car**: the axis is the car's own, so the view leans with the car through a banked corner. Your head is in the seat.
+
+On a flat straight the two are identical. The mod comes up in whatever `WorldSpaceYaw` says; the key switches it for the session only.
+
+## Configuration
+
+`HeadTracking.ini` sits next to `AssettoCorsaEVO.exe`. Edit it and restart the game to apply. The defaults, annotated with the accepted ranges:
+
+```ini
+[Network]
+UdpPort=4242
+
+[General]
+EnableOnStartup=1
+; 1 turns the head about the world's up axis, so the axis stays level with
+; the horizon through a banked corner. 0 turns it about the camera's own up
+; axis, so the view leans with the car.
+WorldSpaceYaw=1
+
+[Hotkeys]
+; Virtual key code for the yaw mode toggle. 0x22 is Page Down.
+YawModeKey=0x22
+
+[Rotation]
+; 0.1 - 3.0. Higher turns the view further for the same head movement.
+YawSensitivity=1.0
+PitchSensitivity=1.0
+RollSensitivity=1.0
+InvertYaw=0
+InvertPitch=0
+InvertRoll=0
+; 0.0 responsive - 1.0 heavy. A 0.15 floor is always applied internally.
+Smoothing=0.0
+
+[Position]
+Enabled=1
+SensitivityX=1.0
+SensitivityY=1.0
+SensitivityZ=1.0
+InvertX=0
+InvertY=0
+InvertZ=0
+; Travel limits in metres. Z is asymmetric: more room to lean forward
+; toward the windscreen than back into the seat.
+LimitX=0.30
+LimitY=0.20
+LimitZ=0.40
+LimitZBack=0.10
+Smoothing=0.15
+```
+
+## Troubleshooting
+
+**Mod not loading.**
+
+- Check `AssettoCorsaEvoHeadTracking.log` next to the game EXE. It records whether the loader attached, whether the build profile matched, and whether the camera hooks landed.
+- No log file at all means the ASI loader is not attaching. Confirm `dinput8.dll` is in the same folder as `AssettoCorsaEVO.exe`.
+- If the log says the build is newer than the mod knows about, Assetto Corsa EVO has patched and the mod has not been updated for that build yet. It stays dormant on purpose. Check the releases page for a newer release.
+
+**No tracking response.**
+
+- Confirm your tracker is running and its output is UDP to `127.0.0.1` port `4242`, matching `UdpPort` in `HeadTracking.ini`.
+- Press `End` to make sure tracking is not toggled off.
+- A phone app must target your PC's LAN IP, not `127.0.0.1`, and your firewall must allow inbound UDP on `4242`.
+- Another game still running with a head tracking mod holds the port, and the log says `Failed to bind UDP port 4242`. The mod keeps retrying for as long as it is loaded, so close the other game and tracking starts within a second, logging `Bound UDP port 4242 after 12s of waiting - tracking is live`. There is no need to restart Assetto Corsa EVO.
+
+**Jittery or unstable tracking.**
+
+- Raise `Smoothing` in `[Rotation]` and `[Position]`. Start at `0.3`.
+- Webcam trackers need even lighting and a clear view of your face; a dark room or a strong backlight makes the pose wander.
+- On Wi-Fi, a phone app on the 5 GHz band is far steadier than 2.4 GHz.
+
+**Wrong rotation axis or the view drifts off centre.**
+
+- Press `Home` to recenter while sitting in your normal driving position.
+- If an axis moves the wrong way, set the matching `InvertYaw`, `InvertPitch` or `InvertRoll` to `1`.
+
+**Yaw feels wrong when looking well up or down, or through a banked corner.**
+
+- Toggle between world-locked and car-locked yaw with `Page Down` or `Ctrl+Shift+H`. World-locked is the default and keeps the axis level with the horizon; car-locked follows the car's own up axis, so the view leans with the car. Set `WorldSpaceYaw` in `[General]` to whichever you prefer to make it the mode the mod starts in.
+
+**The view keeps following my head in the pause menu.**
+
+- The mod reads the session state from the game's own telemetry page. The log records every change (`[sim] session paused - head tracking held`). If the log says `head tracking will not pause with the game`, that page could not be mapped; report it with the log.
+
+## Updating
+
+Download the new release and run `install.cmd` again. Your `HeadTracking.ini` is preserved.
+
+## Uninstalling
+
+Run `uninstall.cmd`. This removes `AssettoCorsaEvoHeadTracking.asi`. The Ultimate ASI Loader is only removed if the installer put it there; use `uninstall.cmd /force` to remove it anyway. `HeadTracking.ini` and `AssettoCorsaEvoHeadTracking.log` are left in place, so delete those by hand if you want the folder completely clean.
+
+## Building from Source
+
+Needs CMake and a Visual Studio C++ toolchain. The build never touches the game install and never needs the game to be present.
+
+```powershell
+git clone --recursive https://github.com/itsloopyo/assetto-corsa-evo-headtracking
+cd assetto-corsa-evo-headtracking
+pixi run build
+pixi run test
+pixi run package
+```
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+## Credits
+
+- KUNOS Simulazioni for Assetto Corsa EVO.
+- [Ultimate ASI Loader](https://github.com/ThirteenAG/Ultimate-ASI-Loader) by ThirteenAG.
+- [MinHook](https://github.com/TsudaKageyu/minhook) by Tsuda Kageyu.
+- [OpenTrack](https://github.com/opentrack/opentrack) for the tracking protocol.
+
+Full attribution in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
+## Disclaimer
+
+This mod is not affiliated with, endorsed by, or supported by KUNOS Simulazioni. Use at your own risk.
+
+## Community & Support
+
+- [Discord](https://discord.com/invite/dxyZdyFNT9) - setup help, bug reports, and new-release announcements
+- [Lopari](https://lopari.app) - free Windows launcher with one-click install and launch of head-tracking mods
+- [Headcam](https://headcam.app) - free app that turns your phone into a head tracker
