@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(AssettoCorsaEvoHeadTracking VERSION 0.0.0 LANGUAGES C CXX)
+project(AssettoCorsaEvoHeadTracking VERSION 1.0.0 LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
