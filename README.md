@@ -8,6 +8,7 @@ An unofficial head tracking mod for Assetto Corsa EVO that moves the driving cam
 
 - **Decoupled view and driving** - your head moves the camera; the car, the physics and every input stay untouched
 - **6DOF positional tracking** - lean into an apex, peek round the A-pillar, check your mirrors
+- **Horizon-locked look** - your head turns about the world's up axis, so a banked corner does not tilt the axis you turn about and looking down at the pedals then turning pans across the floor
 - **Works in every driving view** - cockpit, dash, bonnet, fixed external and the chase cam
 
 ## Requirements
@@ -78,7 +79,6 @@ Two equivalent binding sets, use whichever your keyboard has:
 | Recenter            | `Home`      | `Ctrl+Shift+T`  |
 | Toggle tracking     | `End`       | `Ctrl+Shift+Y`  |
 | Cycle tracking mode | `Page Up`   | `Ctrl+Shift+G`  |
-| Toggle yaw mode     | `Page Down` | `Ctrl+Shift+H`  |
 
 `Page Up` / `Ctrl+Shift+G` cycles tracking mode:
 
@@ -86,13 +86,6 @@ Two equivalent binding sets, use whichever your keyboard has:
 2. Positional tracking disabled, rotational tracking enabled
 3. Rotational tracking disabled, positional tracking enabled
 4. Back to normal
-
-`Page Down` / `Ctrl+Shift+H` switches which axis your head turns the view about:
-
-- **World** (the default): the axis stays level with the horizon, so looking down at the pedals and turning your head pans across the floor, and a banked corner does not tilt it.
-- **Car**: the axis is the car's own, so the view leans with the car through a banked corner. Your head is in the seat.
-
-On a flat straight the two are identical. The mod comes up in whatever `WorldSpaceYaw` says; the key switches it for the session only.
 
 Every one of these keys is remappable through `[Hotkeys]` in `HeadTracking.ini`, both the nav-cluster key and the chord letter, which is worth doing if your button box or a wheel plugin already sits on one of them.
 
@@ -106,10 +99,6 @@ UdpPort=4242
 
 [General]
 EnableOnStartup=1
-; 1 turns the head about the world's up axis, so the axis stays level with
-; the horizon through a banked corner. 0 turns it about the camera's own up
-; axis, so the view leans with the car.
-WorldSpaceYaw=1
 
 [Hotkeys]
 ; Windows virtual key codes, in hex. Each action has a nav-cluster key and a
@@ -117,11 +106,9 @@ WorldSpaceYaw=1
 RecenterKey=0x24
 ToggleKey=0x23
 CycleModeKey=0x21
-YawModeKey=0x22
 ChordRecenterKey=0x54
 ChordToggleKey=0x59
 ChordCycleModeKey=0x47
-ChordYawModeKey=0x48
 
 [Rotation]
 ; 0.1 - 3.0. Higher turns the view further for the same head movement.
@@ -178,10 +165,6 @@ Hotkeys are codes, not key names: `RecenterKey=Insert` is refused, `RecenterKey=
 
 - Press `Home` to recenter while sitting in your normal driving position.
 - If an axis moves the wrong way, set the matching `InvertYaw`, `InvertPitch` or `InvertRoll` to `1`.
-
-**Yaw feels wrong when looking well up or down, or through a banked corner.**
-
-- Toggle between world-locked and car-locked yaw with `Page Down` or `Ctrl+Shift+H`. World-locked is the default and keeps the axis level with the horizon; car-locked follows the car's own up axis, so the view leans with the car. Set `WorldSpaceYaw` in `[General]` to whichever you prefer to make it the mode the mod starts in.
 
 **The view keeps following my head in the pause menu.**
 

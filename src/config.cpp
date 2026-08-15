@@ -25,16 +25,11 @@ static constexpr char kDefaultIniText[] =
     ";           Home / Ctrl+Shift+T   recenter\n"
     ";           End  / Ctrl+Shift+Y   toggle tracking\n"
     ";           PgUp / Ctrl+Shift+G   cycle tracking mode (rotation and position\n"
-    ";                                 / rotation only / position only)\n"
-    ";           PgDn / Ctrl+Shift+H   toggle yaw mode (world / camera-local)\n\n"
+    ";                                 / rotation only / position only)\n\n"
     "[Network]\n"
     "UdpPort=4242\n\n"
     "[General]\n"
-    "EnableOnStartup=1\n"
-    "; 1 turns the head about the world's up axis, so the axis stays level with\n"
-    "; the horizon through a banked corner. 0 turns it about the camera's own up\n"
-    "; axis, so the view leans with the car.\n"
-    "WorldSpaceYaw=1\n\n"
+    "EnableOnStartup=1\n\n"
     "[Hotkeys]\n"
     "; Windows virtual key codes, in hex. Each action has a nav-cluster key and a\n"
     "; Ctrl+Shift+<key> chord, and both fire it - remap either or both.\n"
@@ -43,11 +38,9 @@ static constexpr char kDefaultIniText[] =
     "RecenterKey=0x24\n"
     "ToggleKey=0x23\n"
     "CycleModeKey=0x21\n"
-    "YawModeKey=0x22\n"
     "ChordRecenterKey=0x54\n"
     "ChordToggleKey=0x59\n"
-    "ChordCycleModeKey=0x47\n"
-    "ChordYawModeKey=0x48\n\n"
+    "ChordCycleModeKey=0x47\n\n"
     "[Rotation]\n"
     "YawSensitivity=1.0\n"
     "PitchSensitivity=1.0\n"
@@ -166,16 +159,13 @@ void LoadConfig(const std::string& exe_dir, Config& out) {
     }
 
     out.enable_on_startup  = ini.ReadBool ("General",  "EnableOnStartup",  out.enable_on_startup);
-    out.world_space_yaw    = ini.ReadBool ("General",  "WorldSpaceYaw",    out.world_space_yaw);
 
     out.recenter_key          = ReadKey(ini, "RecenterKey",       out.recenter_key);
     out.toggle_key            = ReadKey(ini, "ToggleKey",         out.toggle_key);
     out.cycle_mode_key        = ReadKey(ini, "CycleModeKey",      out.cycle_mode_key);
-    out.yaw_mode_key          = ReadKey(ini, "YawModeKey",        out.yaw_mode_key);
     out.chord_recenter_key    = ReadKey(ini, "ChordRecenterKey",  out.chord_recenter_key);
     out.chord_toggle_key      = ReadKey(ini, "ChordToggleKey",    out.chord_toggle_key);
     out.chord_cycle_mode_key  = ReadKey(ini, "ChordCycleModeKey", out.chord_cycle_mode_key);
-    out.chord_yaw_mode_key    = ReadKey(ini, "ChordYawModeKey",   out.chord_yaw_mode_key);
 
     out.yaw_sensitivity    = ReadSensitivity(ini, "Rotation", "YawSensitivity",   out.yaw_sensitivity);
     out.pitch_sensitivity  = ReadSensitivity(ini, "Rotation", "PitchSensitivity", out.pitch_sensitivity);

@@ -39,9 +39,9 @@ constexpr float kTurned[kCameraTransformFloats] = {
     10.0f, 2.0f, -5.0f, 1.0f,
 };
 
-// A car banked 30 degrees to the left, the case where head rotation being
-// camera-local rather than world-locked is observable: "up" for the driver is
-// the car's up, not the world's.
+// A car banked 30 degrees to the left, the case that separates a head yaw about
+// the world's up axis from one about the camera's own: level, the two are the
+// same rotation.
 constexpr float kBanked[kCameraTransformFloats] = {
     0.86602540f,  0.5f,        0.0f, 0.0f,
    -0.5f,         0.86602540f, 0.0f, 0.0f,
@@ -57,9 +57,9 @@ struct Matrix {
     }
 };
 
-Matrix Applied(const float src[kCameraTransformFloats], const HeadPose& pose, YawMode mode) {
+Matrix Applied(const float src[kCameraTransformFloats], const HeadPose& pose) {
     Matrix result(src);
-    ApplyHeadPose(result.m, pose, mode);
+    ApplyHeadPose(result.m, pose);
     return result;
 }
 
@@ -84,12 +84,10 @@ void NeutralPoseTests() {
     std::printf("A zero pose is a no-op\n");
     const HeadPose neutral;
 
-    CheckMatrixClose(Applied(kTurned, neutral, YawMode::CameraLocal), kTurned,
+    CheckMatrixClose(Applied(kTurned, neutral), kTurned,
                      "a zero pose leaves the engine matrix untouched");
-    CheckMatrixClose(Applied(kBanked, neutral, YawMode::CameraLocal), kBanked,
+    CheckMatrixClose(Applied(kBanked, neutral), kBanked,
                      "and leaves a banked one untouched too");
-    CheckMatrixClose(Applied(kBanked, neutral, YawMode::WorldSpace), kBanked,
-                     "and in world-space yaw mode too");
 }
 
 void LeanTests() {
@@ -102,56 +100,57 @@ void LeanTests() {
 
     // The engine's lateral axis runs opposite to OpenTrack's, so a positive
     // lean_x moves the camera along -X of a level basis.
-    const Matrix level = Applied(kIdentity, pose, YawMode::CameraLocal);
+    const Matrix level = Applied(kIdentity, pose);
     CheckClose(level.m[12], -0.10f, "lean_x moves along the negated right axis");
     CheckClose(level.m[13], 0.20f, "lean_y moves along the up axis");
     CheckClose(level.m[14], 0.30f, "lean_z moves along the forward axis");
 
     // Same pose against a turned camera: the offset must rotate with the car,
     // so lean_z (forward) now moves along world -X.
-    const Matrix turned = Applied(kTurned, pose, YawMode::CameraLocal);
+    const Matrix turned = Applied(kTurned, pose);
     CheckClose(turned.m[12], 10.0f - 0.30f, "lean follows the car's forward axis");
     CheckClose(turned.m[13], 2.0f + 0.20f, "lean up is unchanged by the car's yaw");
     CheckClose(turned.m[14], -5.0f - 0.10f, "lean lateral follows the car's right axis");
 }
 
 void YawTests() {
-    std::printf("Yaw turns the basis about the camera's own up axis\n");
+    // A level camera's up axis IS the world's, so this also pins the angle and
+    // the direction: 90 degrees of head yaw turns the view by exactly that.
+    std::printf("Yaw turns the basis about the up axis\n");
 
     HeadPose pose;
     pose.yaw = 90.0f;
 
-    const Matrix turned = Applied(kIdentity, pose, YawMode::CameraLocal);
+    const Matrix turned = Applied(kIdentity, pose);
     CheckClose(turned.m[0], 0.0f, "right.x after a 90 degree yaw");
     CheckClose(turned.m[1], 0.0f, "right.y after a 90 degree yaw");
     CheckClose(turned.m[2], 1.0f, "right.z after a 90 degree yaw");
     CheckClose(turned.m[4], 0.0f, "up.x is untouched by yaw");
-    CheckClose(turned.m[5], 1.0f, "up stays the camera's up");
+    CheckClose(turned.m[5], 1.0f, "up stays the up axis");
     CheckClose(turned.m[8], -1.0f, "forward.x after a 90 degree yaw");
     CheckClose(turned.m[10], 0.0f, "forward.z after a 90 degree yaw");
 
     // Yawing the view must not orbit the camera around the world origin.
-    const Matrix moved = Applied(kTurned, pose, YawMode::CameraLocal);
+    const Matrix moved = Applied(kTurned, pose);
     CheckClose(moved.m[12], 10.0f, "yaw leaves position.x alone");
     CheckClose(moved.m[13], 2.0f, "yaw leaves position.y alone");
     CheckClose(moved.m[14], -5.0f, "yaw leaves position.z alone");
 }
 
 void BankedCarTests() {
-    // In camera-local mode the whole rotation is camera-local, which is what a
-    // cockpit needs: the driver's head is bolted into the seat, so the pose must
-    // land the same way in the car's frame however far the car is banked over.
+    // Yaw is the only axis that leaves the camera's frame. Pitch and roll are
+    // the driver's head in the seat, so with the yaw at zero the pose must land
+    // the same way in the car's frame however far the car is banked over.
     // Expressed in the car's own basis - each output row dotted with each clean
     // row - a banked car must give exactly what a level one does.
-    std::printf("Camera-local yaw lands the same way in the car's own frame\n");
+    std::printf("Pitch and roll stay in the car's own frame\n");
 
     HeadPose pose;
-    pose.yaw = 35.0f;
     pose.pitch = -12.0f;
     pose.roll = 6.0f;
 
-    const Matrix level = Applied(kIdentity, pose, YawMode::CameraLocal);
-    const Matrix banked = Applied(kBanked, pose, YawMode::CameraLocal);
+    const Matrix level = Applied(kIdentity, pose);
+    const Matrix banked = Applied(kBanked, pose);
 
     for (int r = 0; r < 3; ++r) {
         for (int c = 0; c < 3; ++c) {
@@ -170,7 +169,7 @@ void PitchAndRollTests() {
 
     HeadPose pitch;
     pitch.pitch = 20.0f;
-    const Matrix pitched = Applied(kIdentity, pitch, YawMode::CameraLocal);
+    const Matrix pitched = Applied(kIdentity, pitch);
     CheckClose(pitched.m[8], 0.0f, "pitch leaves forward.x at zero");
     CheckClose(pitched.m[9], -std::sin(20.0f * kDegToRad), "pitch tilts forward.y");
     CheckClose(pitched.m[10], std::cos(20.0f * kDegToRad),
@@ -179,7 +178,7 @@ void PitchAndRollTests() {
 
     HeadPose roll;
     roll.roll = 15.0f;
-    const Matrix rolled = Applied(kIdentity, roll, YawMode::CameraLocal);
+    const Matrix rolled = Applied(kIdentity, roll);
     CheckClose(rolled.m[0], std::cos(15.0f * kDegToRad), "roll shortens right.x");
     CheckClose(rolled.m[1], std::sin(15.0f * kDegToRad), "roll lifts right.y");
     CheckClose(rolled.m[10], 1.0f, "roll leaves the forward axis alone");
@@ -212,44 +211,34 @@ HeadPose CombinedPose() {
 
 void BasisIntegrityTests() {
     std::printf("A combined pose leaves a well-formed transform\n");
-    CheckBasisIntegrity(Applied(kTurned, CombinedPose(), YawMode::CameraLocal));
-    CheckBasisIntegrity(Applied(kBanked, CombinedPose(), YawMode::WorldSpace));
+    CheckBasisIntegrity(Applied(kTurned, CombinedPose()));
+    CheckBasisIntegrity(Applied(kBanked, CombinedPose()));
 }
 
-void WorldSpaceYawTests() {
-    // The shipped default. Yaw turns the view about the world's up axis, so
-    // "up" stays a constant however the car is banked.
-    std::printf("World-space yaw turns the basis about the world's up axis\n");
-
-    // A level car cannot tell the two modes apart: the camera's up axis IS the
-    // world's. Toggling yaw mode on a flat straight must not move the view at
-    // all, and that is what makes the toggle a mode switch rather than a second
-    // set of rotation maths.
-    CheckMatrixClose(Applied(kTurned, CombinedPose(), YawMode::WorldSpace),
-                     Applied(kTurned, CombinedPose(), YawMode::CameraLocal).m,
-                     "a level car sees the same view in either mode");
+void WorldYawTests() {
+    // Yaw turns the view about the world's up axis, so "up" stays a constant
+    // however the car is banked. This is what stops a banked corner tilting the
+    // axis the head turns about, and what makes looking down at the pedals and
+    // turning the head pan across the floor rather than spin the view about the
+    // direction of gaze.
+    std::printf("Yaw is about the world's up axis, not the car's\n");
 
     HeadPose pose;
     pose.yaw = 40.0f;
 
     // A rotation about the world's up axis leaves every basis vector's world Y
-    // component exactly where it was. That is the whole point of the mode, and
-    // it holds no matter what the yaw angle is.
-    const Matrix banked = Applied(kBanked, pose, YawMode::WorldSpace);
+    // component exactly where it was, no matter what the yaw angle is. On a
+    // banked car a camera-local yaw would move them, so this is the check that
+    // separates the two.
+    const Matrix banked = Applied(kBanked, pose);
     for (int r = 0; r < 3; ++r) {
         CheckClose(banked.m[r * 4 + 1], kBanked[r * 4 + 1],
                    "yaw on a banked car leaves the basis row's height alone");
     }
 
-    // The same yaw in camera-local mode tilts that axis with the car, which is
-    // the difference a driver feels on a banked corner.
-    const Matrix local = Applied(kBanked, pose, YawMode::CameraLocal);
-    Check(std::fabs(local.m[1] - kBanked[1]) > 0.01f,
-          "camera-local yaw on a banked car does not");
-
-    CheckClose(banked.m[12], 3.0f, "world-space yaw does not move the camera in x");
-    CheckClose(banked.m[13], 1.5f, "world-space yaw does not move the camera in y");
-    CheckClose(banked.m[14], 7.0f, "world-space yaw does not move the camera in z");
+    CheckClose(banked.m[12], 3.0f, "yaw does not move the camera in x");
+    CheckClose(banked.m[13], 1.5f, "yaw does not move the camera in y");
+    CheckClose(banked.m[14], 7.0f, "yaw does not move the camera in z");
 
     CheckBasisIntegrity(banked);
 }
@@ -262,7 +251,7 @@ int main() {
     NeutralPoseTests();
     LeanTests();
     YawTests();
-    WorldSpaceYawTests();
+    WorldYawTests();
     BankedCarTests();
     PitchAndRollTests();
     BasisIntegrityTests();

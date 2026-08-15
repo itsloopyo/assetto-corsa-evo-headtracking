@@ -21,34 +21,20 @@ struct HeadPose {
     float lean_z = 0.0f;
 };
 
-// Which axis head yaw turns the view about. Pitch and roll are camera-local
-// either way, and the two modes are identical whenever the car is level - the
-// mode only decides what "up" means once the car is banked or pitched.
-enum class YawMode {
-    // Yaw about the world's up axis. Looking down at the pedals and turning the
-    // head pans across the floor rather than spinning the view about the
-    // direction of gaze, and a banked corner does not tilt the axis the head
-    // turns about. "Up" stays a constant.
-    WorldSpace,
-    // Yaw about the camera's own up axis, so the pose lands the same way in the
-    // car's frame however far the car is banked over. The physical truth of a
-    // cockpit - the driver's head sits in the seat - at the cost of the view
-    // leaning at extreme angles.
-    CameraLocal,
-};
-
 // Composes `pose` into the engine's freshly computed camera-to-world transform,
 // in place. `transform` is row-major with the camera position in elements
 // 12..14, which is the convention the whole of camera_transform.cpp encodes.
 //
-// In CameraLocal mode all three axes go in one quaternion applied against the
-// camera's own basis. In WorldSpace mode the yaw turns the basis about the
-// world's up axis first and only pitch and roll go through the quaternion; the
-// camera's position is untouched by both, so neither mode orbits the car.
+// Head yaw turns the basis about the WORLD's up axis; pitch and roll are
+// camera-local. So looking down at the pedals and turning the head pans across
+// the floor rather than spinning the view about the direction of gaze, and a
+// banked corner does not tilt the axis the head turns about - "up" stays a
+// constant. On a level car that is indistinguishable from yawing about the
+// camera's own up axis; it only diverges once the car is banked or pitched.
+// The camera's position is untouched, so the view never orbits the car.
 //
 // Pure: no engine state, no logging, no clock. The hook decides whether to
-// call it and in which mode; this decides only what the matrix becomes.
-void ApplyHeadPose(float transform[kCameraTransformFloats], const HeadPose& pose,
-                   YawMode yaw_mode);
+// call it; this decides only what the matrix becomes.
+void ApplyHeadPose(float transform[kCameraTransformFloats], const HeadPose& pose);
 
 }  // namespace ace_ht

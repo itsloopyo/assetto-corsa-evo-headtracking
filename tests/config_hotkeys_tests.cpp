@@ -77,10 +77,6 @@ void RemapTests() {
     const Config cycle = Load("[Hotkeys]\nCycleModeKey=0x70\nChordCycleModeKey=0x4A\n");
     Check(cycle.cycle_mode_key == 0x70 && cycle.chord_cycle_mode_key == 0x4A,
           "reaches the cycle-mode action");
-
-    const Config yaw = Load("[Hotkeys]\nYawModeKey=0x71\nChordYawModeKey=0x55\n");
-    Check(yaw.yaw_mode_key == 0x71 && yaw.chord_yaw_mode_key == 0x55,
-          "reaches the yaw-mode action");
 }
 
 void RefusedValuesKeepThePreviousBindingTests() {

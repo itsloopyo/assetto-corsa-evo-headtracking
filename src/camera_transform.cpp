@@ -103,8 +103,7 @@ static void AddBodyFrameLean(const float clean[kCameraTransformFloats],
     }
 }
 
-void ApplyHeadPose(float transform[kCameraTransformFloats], const HeadPose& pose,
-                   YawMode yaw_mode) {
+void ApplyHeadPose(float transform[kCameraTransformFloats], const HeadPose& pose) {
     // The camera basis is left-handed X-right / Y-up / Z-forward (confirmed
     // from a live matrix: right x up == forward exactly), but the engine's yaw
     // and its lateral axis both run opposite to OpenTrack's. Negating the two
@@ -120,18 +119,15 @@ void ApplyHeadPose(float transform[kCameraTransformFloats], const HeadPose& pose
     float clean[kCameraTransformFloats];
     std::memcpy(clean, transform, sizeof(clean));
 
-    // The multiply's right-hand operand: the clean basis in camera-local mode,
-    // the clean basis already turned about the world's up axis in world-space
-    // mode. Yaw leaves the quaternion in that mode, so what stays camera-local
-    // is exactly pitch and roll, composed the same way in both.
+    // The multiply's right-hand operand: the clean basis already turned about
+    // the world's up axis. Yaw is spent here, so what goes through the
+    // quaternion - and stays camera-local - is exactly pitch and roll.
     float base[kCameraTransformFloats];
     std::memcpy(base, clean, sizeof(base));
+    ApplyWorldYaw(base, engineYaw);
 
-    const bool worldSpaceYaw = yaw_mode == YawMode::WorldSpace;
-    if (worldSpaceYaw) ApplyWorldYaw(base, engineYaw);
-
-    const cameraunlock::math::Quat4 q = cameraunlock::math::Quat4::FromYawPitchRoll(
-        worldSpaceYaw ? 0.0f : engineYaw, pose.pitch, pose.roll);
+    const cameraunlock::math::Quat4 q =
+        cameraunlock::math::Quat4::FromYawPitchRoll(0.0f, pose.pitch, pose.roll);
 
     float head[kCameraTransformFloats];
     ComposeHeadRotation(q, head);

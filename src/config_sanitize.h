@@ -45,8 +45,8 @@ inline float SanitizeSensitivity(float v) {
 }
 
 // A virtual key code the hotkey poller can actually watch. GetAsyncKeyState
-// only defines 0x01..0xFE, so a typo like YawModeKey=0x220 registers a hotkey
-// that can never fire and the toggle silently does nothing.
+// only defines 0x01..0xFE, so a typo like ToggleKey=0x230 registers a hotkey
+// that can never fire and the key silently does nothing.
 //
 // The modifiers are refused for a second reason: Ctrl and Shift are what the
 // chord guard tests, so an action bound to one either never fires (a nav

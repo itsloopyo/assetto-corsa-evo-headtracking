@@ -36,11 +36,6 @@ static cameraunlock::time::FrameClock g_frameClock;
 static std::atomic<bool> g_trackingEnabled{false};
 static std::atomic<bool> g_active{false};
 
-// Read on the render path, written from the hotkey thread. Seeded from the INI
-// at boot; the toggle moves it for this session only, so the file stays the
-// authority on what the mod comes up in.
-static std::atomic<bool> g_worldSpaceYaw{true};
-
 static std::atomic<long long> g_frameCounter{0};
 
 // Enough of the engine's camera transform to confirm in a bug report that the
@@ -100,12 +95,6 @@ static void CycleTrackingMode() {
     Log::Line("[input] tracking mode: %s", name);
 }
 
-static void ToggleYawMode() {
-    const bool world = !g_worldSpaceYaw.load();
-    g_worldSpaceYaw.store(world);
-    Log::Line("[input] yaw mode: %s", world ? "world (horizon-locked)" : "camera-local");
-}
-
 // Every action is reachable two ways: its nav-cluster key, and the
 // Ctrl+Shift+<letter> chord for keyboards without a nav cluster. Pairing them
 // in one row is what keeps the two lists from drifting apart - a new action
@@ -155,7 +144,6 @@ static void RegisterHotkeys(const Config& config) {
         { config.recenter_key,   config.chord_recenter_key,   Recenter },
         { config.toggle_key,     config.chord_toggle_key,     ToggleTracking },
         { config.cycle_mode_key, config.chord_cycle_mode_key, CycleTrackingMode },
-        { config.yaw_mode_key,   config.chord_yaw_mode_key,   ToggleYawMode },
     };
 
     for (const HotkeyBinding& binding : bindings) {
@@ -193,15 +181,12 @@ static void Bootstrap() {
 
     WriteDefaultConfigIfMissing(exeDir);
     LoadConfig(exeDir, g_config);
-    Log::Line("[boot] config: port=%u enableOnStartup=%d smoothing=%.2f position=%d "
-              "worldSpaceYaw=%d",
+    Log::Line("[boot] config: port=%u enableOnStartup=%d smoothing=%.2f position=%d",
               static_cast<unsigned>(g_config.udp_port), g_config.enable_on_startup ? 1 : 0,
-              g_config.smoothing, g_config.position_enabled ? 1 : 0,
-              g_config.world_space_yaw ? 1 : 0);
+              g_config.smoothing, g_config.position_enabled ? 1 : 0);
 
     ApplyConfigToPipeline(g_config, g_session);
     g_trackingEnabled.store(g_config.enable_on_startup);
-    g_worldSpaceYaw.store(g_config.world_space_yaw);
 
     g_receiver.SetLog([](const std::string& msg) { Log::Line("[udp] %s", msg.c_str()); });
     if (g_receiver.Start(g_config.udp_port)) {
@@ -221,15 +206,13 @@ static void Bootstrap() {
     RegisterHotkeys(g_config);
     g_active.store(true);
     Log::Line("[boot] ready. %s/Ctrl+Shift+%s recenter, %s/Ctrl+Shift+%s toggle tracking, "
-              "%s/Ctrl+Shift+%s cycle tracking mode, %s/Ctrl+Shift+%s toggle yaw mode.",
+              "%s/Ctrl+Shift+%s cycle tracking mode.",
               HotkeyName(g_config.recenter_key).c_str(),
               HotkeyName(g_config.chord_recenter_key).c_str(),
               HotkeyName(g_config.toggle_key).c_str(),
               HotkeyName(g_config.chord_toggle_key).c_str(),
               HotkeyName(g_config.cycle_mode_key).c_str(),
-              HotkeyName(g_config.chord_cycle_mode_key).c_str(),
-              HotkeyName(g_config.yaw_mode_key).c_str(),
-              HotkeyName(g_config.chord_yaw_mode_key).c_str());
+              HotkeyName(g_config.chord_cycle_mode_key).c_str());
 }
 
 static void LogSimStatusChange(SimStatus status) {
@@ -286,9 +269,7 @@ void OnCameraTransformComputed(float* transform) {
     // exactly as it computed it.
     if (!haveRotation || !g_trackingEnabled.load(std::memory_order_relaxed)) return;
 
-    ApplyHeadPose(transform, pose,
-                  g_worldSpaceYaw.load(std::memory_order_relaxed) ? YawMode::WorldSpace
-                                                                  : YawMode::CameraLocal);
+    ApplyHeadPose(transform, pose);
 }
 
 void Initialize() {

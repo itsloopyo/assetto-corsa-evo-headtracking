@@ -49,16 +49,13 @@ void CheckMatchesDefaults(const Config& cfg, const char* source) {
 
     Check(cfg.udp_port == defaults.udp_port, "UdpPort");
     Check(cfg.enable_on_startup == defaults.enable_on_startup, "EnableOnStartup");
-    Check(cfg.world_space_yaw == defaults.world_space_yaw, "WorldSpaceYaw");
 
     Check(cfg.recenter_key == defaults.recenter_key, "RecenterKey");
     Check(cfg.toggle_key == defaults.toggle_key, "ToggleKey");
     Check(cfg.cycle_mode_key == defaults.cycle_mode_key, "CycleModeKey");
-    Check(cfg.yaw_mode_key == defaults.yaw_mode_key, "YawModeKey");
     Check(cfg.chord_recenter_key == defaults.chord_recenter_key, "ChordRecenterKey");
     Check(cfg.chord_toggle_key == defaults.chord_toggle_key, "ChordToggleKey");
     Check(cfg.chord_cycle_mode_key == defaults.chord_cycle_mode_key, "ChordCycleModeKey");
-    Check(cfg.chord_yaw_mode_key == defaults.chord_yaw_mode_key, "ChordYawModeKey");
 
     CheckClose(cfg.yaw_sensitivity, defaults.yaw_sensitivity, "YawSensitivity");
     CheckClose(cfg.pitch_sensitivity, defaults.pitch_sensitivity, "PitchSensitivity");
@@ -99,10 +96,8 @@ void GeneratedDefaultsTests() {
     Config cfg;
     cfg.udp_port = 5555;
     cfg.enable_on_startup = false;
-    cfg.world_space_yaw = false;
-    cfg.recenter_key = cfg.toggle_key = cfg.cycle_mode_key = cfg.yaw_mode_key = 0x70;
-    cfg.chord_recenter_key = cfg.chord_toggle_key = 0x71;
-    cfg.chord_cycle_mode_key = cfg.chord_yaw_mode_key = 0x71;
+    cfg.recenter_key = cfg.toggle_key = cfg.cycle_mode_key = 0x70;
+    cfg.chord_recenter_key = cfg.chord_toggle_key = cfg.chord_cycle_mode_key = 0x71;
     cfg.yaw_sensitivity = cfg.pitch_sensitivity = cfg.roll_sensitivity = 9.0f;
     cfg.invert_yaw = cfg.invert_pitch = cfg.invert_roll = true;
     cfg.smoothing = 0.99f;
@@ -138,10 +133,8 @@ void ReferenceIniTests() {
     cfg.udp_port = 5555;
     cfg.smoothing = 0.99f;
     cfg.limit_x = 9.0f;
-    cfg.world_space_yaw = false;
-    cfg.recenter_key = cfg.toggle_key = cfg.cycle_mode_key = cfg.yaw_mode_key = 0x70;
-    cfg.chord_recenter_key = cfg.chord_toggle_key = 0x71;
-    cfg.chord_cycle_mode_key = cfg.chord_yaw_mode_key = 0x71;
+    cfg.recenter_key = cfg.toggle_key = cfg.cycle_mode_key = 0x70;
+    cfg.chord_recenter_key = cfg.chord_toggle_key = cfg.chord_cycle_mode_key = 0x71;
 
     LoadConfig(ACE_SOURCE_DIR, cfg);
     CheckMatchesDefaults(cfg, "The reference HeadTracking.ini at the repo root");
