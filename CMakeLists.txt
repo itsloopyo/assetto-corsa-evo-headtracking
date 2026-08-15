@@ -124,6 +124,11 @@ if(ACE_BUILD_TESTS)
     target_compile_definitions(ace_config_defaults_tests PRIVATE
         ACE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
+    # The hotkey half of the same loader: which INI values reach a binding and
+    # which leave the action on the key it already had.
+    ace_add_test(config_hotkeys src/config.cpp)
+    target_link_libraries(ace_config_hotkeys_tests PRIVATE cameraunlock)
+
     # Built from what ace_add_test registered, so a new test cannot be added to
     # ctest and left out of the target run-tests.ps1 builds.
     get_property(ace_test_targets GLOBAL PROPERTY ACE_TEST_TARGETS)

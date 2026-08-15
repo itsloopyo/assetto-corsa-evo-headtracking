@@ -94,6 +94,8 @@ Two equivalent binding sets, use whichever your keyboard has:
 
 On a flat straight the two are identical. The mod comes up in whatever `WorldSpaceYaw` says; the key switches it for the session only.
 
+Every one of these keys is remappable through `[Hotkeys]` in `HeadTracking.ini`, both the nav-cluster key and the chord letter, which is worth doing if your button box or a wheel plugin already sits on one of them.
+
 ## Configuration
 
 `HeadTracking.ini` sits next to `AssettoCorsaEVO.exe`. Edit it and restart the game to apply. The defaults, annotated with the accepted ranges:
@@ -110,8 +112,16 @@ EnableOnStartup=1
 WorldSpaceYaw=1
 
 [Hotkeys]
-; Virtual key code for the yaw mode toggle. 0x22 is Page Down.
+; Windows virtual key codes, in hex. Each action has a nav-cluster key and a
+; Ctrl+Shift+<key> chord, and both fire it - remap either or both.
+RecenterKey=0x24
+ToggleKey=0x23
+CycleModeKey=0x21
 YawModeKey=0x22
+ChordRecenterKey=0x54
+ChordToggleKey=0x59
+ChordCycleModeKey=0x47
+ChordYawModeKey=0x48
 
 [Rotation]
 ; 0.1 - 3.0. Higher turns the view further for the same head movement.
@@ -140,6 +150,8 @@ LimitZ=0.40
 LimitZBack=0.10
 Smoothing=0.15
 ```
+
+Hotkeys are codes, not key names: `RecenterKey=Insert` is refused, `RecenterKey=0x2D` is the same key. They are read as hex, so a bare `24` is `0x24`. Common ones are `Home` `0x24`, `End` `0x23`, `Insert` `0x2D`, `Delete` `0x2E`, `Page Up` `0x21`, `Page Down` `0x22`, `F1`-`F12` `0x70`-`0x7B`, `A`-`Z` `0x41`-`0x5A`, numpad `0`-`9` `0x60`-`0x69`; the [full list](https://learn.microsoft.com/windows/win32/inputdev/virtual-key-codes) is Microsoft's. `Ctrl`, `Shift` and `Alt` cannot be bound - they are what the chord itself is made of. A code the mod refuses leaves that action on its previous key and says so in the log; the log also names every key it ended up bound to, so check there first if a remap did not take.
 
 ## Troubleshooting
 

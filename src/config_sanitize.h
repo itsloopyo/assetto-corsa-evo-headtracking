@@ -47,8 +47,17 @@ inline float SanitizeSensitivity(float v) {
 // A virtual key code the hotkey poller can actually watch. GetAsyncKeyState
 // only defines 0x01..0xFE, so a typo like YawModeKey=0x220 registers a hotkey
 // that can never fire and the toggle silently does nothing.
-inline int SanitizeVirtualKey(int v, int fallback) {
-    return (v >= 0x01 && v <= 0xFE) ? v : fallback;
+//
+// The modifiers are refused for a second reason: Ctrl and Shift are what the
+// chord guard tests, so an action bound to one either never fires (a nav
+// binding is suppressed while the chord is held) or fires on every press of
+// any chord. Alt sits with them because it is the same class of key and a
+// binding on it reads as a modifier the user expects to combine, not press.
+inline bool IsBindableVirtualKey(int v) {
+    if (v < 0x01 || v > 0xFE) return false;
+    if (v >= 0x10 && v <= 0x12) return false;  // Shift, Control, Alt
+    if (v >= 0xA0 && v <= 0xA5) return false;  // and their left/right halves
+    return true;
 }
 
 // Travel limits in metres. PositionProcessor clamps each axis to

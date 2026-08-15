@@ -13,12 +13,22 @@ struct Config {
 
     // Yaw about the world's up axis rather than the camera's own, so looking
     // down and turning the head pans across the floor instead of spinning the
-    // view about the direction of gaze. The starting mode only; Page Down and
-    // Ctrl+Shift+H switch it at runtime.
+    // view about the direction of gaze. The starting mode only; the yaw mode
+    // hotkeys switch it at runtime.
     bool world_space_yaw = true;
 
-    // Virtual key code for the yaw mode toggle. 0x22 is Page Down.
+    // Virtual key codes. Every action has a nav-cluster key and a
+    // Ctrl+Shift+<key> chord, and both fire it - the chord is there for
+    // keyboards with no nav cluster. Defaults: Home, End, Page Up, Page Down,
+    // and the T/Y/G/H chord letters.
+    int recenter_key = 0x24;
+    int toggle_key = 0x23;
+    int cycle_mode_key = 0x21;
     int yaw_mode_key = 0x22;
+    int chord_recenter_key = 0x54;
+    int chord_toggle_key = 0x59;
+    int chord_cycle_mode_key = 0x47;
+    int chord_yaw_mode_key = 0x48;
 
     float yaw_sensitivity = 1.0f;
     float pitch_sensitivity = 1.0f;

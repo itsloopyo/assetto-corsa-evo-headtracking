@@ -2,6 +2,8 @@
 
 #include <windows.h>
 
+#include <cstdlib>
+
 #include "config_sanitize.h"
 #include "logging.h"
 
@@ -19,7 +21,8 @@ static constexpr char kDefaultIniText[] =
     "; Assetto Corsa EVO Head Tracking - configuration\n"
     "; Edit values, restart the game to apply.\n"
     ";\n"
-    "; Controls: Home / Ctrl+Shift+T   recenter\n"
+    "; Controls (all remappable, see [Hotkeys]):\n"
+    ";           Home / Ctrl+Shift+T   recenter\n"
     ";           End  / Ctrl+Shift+Y   toggle tracking\n"
     ";           PgUp / Ctrl+Shift+G   cycle tracking mode (rotation and position\n"
     ";                                 / rotation only / position only)\n"
@@ -33,8 +36,18 @@ static constexpr char kDefaultIniText[] =
     "; axis, so the view leans with the car.\n"
     "WorldSpaceYaw=1\n\n"
     "[Hotkeys]\n"
-    "; Virtual key code for the yaw mode toggle. 0x22 is Page Down.\n"
-    "YawModeKey=0x22\n\n"
+    "; Windows virtual key codes, in hex. Each action has a nav-cluster key and a\n"
+    "; Ctrl+Shift+<key> chord, and both fire it - remap either or both.\n"
+    "; Common codes: Home 0x24, End 0x23, Insert 0x2D, Delete 0x2E, PgUp 0x21,\n"
+    "; PgDn 0x22, F1-F12 0x70-0x7B, A-Z 0x41-0x5A, numpad 0-9 0x60-0x69.\n"
+    "RecenterKey=0x24\n"
+    "ToggleKey=0x23\n"
+    "CycleModeKey=0x21\n"
+    "YawModeKey=0x22\n"
+    "ChordRecenterKey=0x54\n"
+    "ChordToggleKey=0x59\n"
+    "ChordCycleModeKey=0x47\n"
+    "ChordYawModeKey=0x48\n\n"
     "[Rotation]\n"
     "YawSensitivity=1.0\n"
     "PitchSensitivity=1.0\n"
@@ -85,6 +98,52 @@ static float ReadSmoothing(const cameraunlock::IniReader& ini, const char* secti
     return UseSanitized(key, raw, SanitizeSmoothing(raw));
 }
 
+// Virtual key codes are published as hex and that is how the shipped INI writes
+// them, so that is how they are read: a bare 24 is 0x24, not 36. IniReader's
+// ReadHex cannot tell an absent key from an unreadable one, and both matter
+// here - the first is the common case, the second is a user who typed a key
+// name and needs to be told it is codes only.
+static bool ParseVirtualKey(const std::string& text, int& out) {
+    const char* start = text.c_str();
+    if (text.size() > 2 && start[0] == '0' && (start[1] == 'x' || start[1] == 'X')) {
+        start += 2;
+    }
+    char* end = nullptr;
+    const long value = std::strtol(start, &end, 16);
+    if (end == start) return false;
+
+    // The whole value has to be the code, not just the front of it. Half the
+    // key names a user would try are made of hex digits - "End" reads as 0xE
+    // and "Delete" as 0xDE, both perfectly bindable keys and neither the one
+    // that was asked for. Only trailing space and a comment are allowed past
+    // the number.
+    while (*end == ' ' || *end == '\t' || *end == '\r' || *end == '\n') ++end;
+    if (*end != '\0' && *end != ';' && *end != '#') return false;
+
+    out = static_cast<int>(value);
+    return true;
+}
+
+// A key the mod refused leaves that action on its previous binding rather than
+// on nothing, so a mistyped code costs the user one hotkey and says so.
+static int ReadKey(const cameraunlock::IniReader& ini, const char* key, int fallback) {
+    const std::string text = ini.ReadString("Hotkeys", key, "");
+    if (text.empty()) return fallback;
+
+    int raw = 0;
+    if (!ParseVirtualKey(text, raw)) {
+        Log::Line("[config] %s=%s is not a virtual key code (0x24, or 24 read as hex); "
+                  "keeping 0x%X", key, text.c_str(), fallback);
+        return fallback;
+    }
+    if (!IsBindableVirtualKey(raw)) {
+        Log::Line("[config] %s=%s is not a key that can be bound; keeping 0x%X",
+                  key, text.c_str(), fallback);
+        return fallback;
+    }
+    return raw;
+}
+
 static float ReadLimit(const cameraunlock::IniReader& ini, const char* key, float fallback) {
     const float raw = ini.ReadFloat("Position", key, fallback);
     return UseSanitized(key, raw, SanitizePositionLimit(raw, fallback));
@@ -109,12 +168,14 @@ void LoadConfig(const std::string& exe_dir, Config& out) {
     out.enable_on_startup  = ini.ReadBool ("General",  "EnableOnStartup",  out.enable_on_startup);
     out.world_space_yaw    = ini.ReadBool ("General",  "WorldSpaceYaw",    out.world_space_yaw);
 
-    const int yawModeKey = ini.ReadHex("Hotkeys", "YawModeKey", out.yaw_mode_key);
-    out.yaw_mode_key = SanitizeVirtualKey(yawModeKey, out.yaw_mode_key);
-    if (yawModeKey != out.yaw_mode_key) {
-        Log::Line("[config] YawModeKey=0x%X is not a virtual key code; using 0x%X",
-                  yawModeKey, out.yaw_mode_key);
-    }
+    out.recenter_key          = ReadKey(ini, "RecenterKey",       out.recenter_key);
+    out.toggle_key            = ReadKey(ini, "ToggleKey",         out.toggle_key);
+    out.cycle_mode_key        = ReadKey(ini, "CycleModeKey",      out.cycle_mode_key);
+    out.yaw_mode_key          = ReadKey(ini, "YawModeKey",        out.yaw_mode_key);
+    out.chord_recenter_key    = ReadKey(ini, "ChordRecenterKey",  out.chord_recenter_key);
+    out.chord_toggle_key      = ReadKey(ini, "ChordToggleKey",    out.chord_toggle_key);
+    out.chord_cycle_mode_key  = ReadKey(ini, "ChordCycleModeKey", out.chord_cycle_mode_key);
+    out.chord_yaw_mode_key    = ReadKey(ini, "ChordYawModeKey",   out.chord_yaw_mode_key);
 
     out.yaw_sensitivity    = ReadSensitivity(ini, "Rotation", "YawSensitivity",   out.yaw_sensitivity);
     out.pitch_sensitivity  = ReadSensitivity(ini, "Rotation", "PitchSensitivity", out.pitch_sensitivity);

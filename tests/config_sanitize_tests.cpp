@@ -72,14 +72,25 @@ void PositionLimitTests() {
 }
 
 void VirtualKeyTests() {
-    std::printf("SanitizeVirtualKey\n");
-    Check(SanitizeVirtualKey(0x22, 0x22) == 0x22, "Page Down passes through");
-    Check(SanitizeVirtualKey(0x01, 0x22) == 0x01, "low bound passes through");
-    Check(SanitizeVirtualKey(0xFE, 0x22) == 0xFE, "high bound passes through");
-    // A key the poller can never see makes the toggle silently do nothing.
-    Check(SanitizeVirtualKey(0x220, 0x22) == 0x22, "above 0xFE -> fallback");
-    Check(SanitizeVirtualKey(0, 0x22) == 0x22, "0 (no key) -> fallback");
-    Check(SanitizeVirtualKey(-1, 0x22) == 0x22, "negative -> fallback");
+    std::printf("IsBindableVirtualKey\n");
+    Check(IsBindableVirtualKey(0x22), "Page Down can be bound");
+    Check(IsBindableVirtualKey(0x01), "low bound can be bound");
+    Check(IsBindableVirtualKey(0xFE), "high bound can be bound");
+    Check(IsBindableVirtualKey(0x54), "a chord letter can be bound");
+    Check(IsBindableVirtualKey(0x7B), "F12 can be bound");
+
+    // A key the poller can never see makes the hotkey silently do nothing.
+    Check(!IsBindableVirtualKey(0x220), "a code above 0xFE is not a key");
+    Check(!IsBindableVirtualKey(0), "0 is not a key");
+    Check(!IsBindableVirtualKey(-1), "a negative code is not a key");
+
+    // Bound to a modifier, a nav binding is suppressed by the chord guard and a
+    // chord binding fires the moment the chord itself is held.
+    Check(!IsBindableVirtualKey(0x10), "Shift cannot be bound");
+    Check(!IsBindableVirtualKey(0x11), "Control cannot be bound");
+    Check(!IsBindableVirtualKey(0x12), "Alt cannot be bound");
+    Check(!IsBindableVirtualKey(0xA2), "left Control cannot be bound");
+    Check(!IsBindableVirtualKey(0xA5), "right Alt cannot be bound");
 }
 
 void UdpPortTests() {

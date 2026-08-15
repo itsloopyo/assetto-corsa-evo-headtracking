@@ -3,6 +3,7 @@
 #include <windows.h>
 
 #include <atomic>
+#include <cstdio>
 #include <string>
 #include <thread>
 
@@ -115,14 +116,46 @@ struct HotkeyBinding {
     void (*action)();
 };
 
-static void RegisterHotkeys(int yaw_mode_key) {
+// GetKeyNameText wants the scan code in bits 16-23 and the extended-key flag in
+// bit 24. The nav cluster, the arrows and a few others are extended keys, and
+// without that bit they name their numpad twins - a recenter left on Home would
+// report itself in the log as "Num 7", which is the one thing this line exists
+// to get right now that the key is the user's to choose.
+static bool IsExtendedKey(int vk) {
+    switch (vk) {
+        case VK_PRIOR: case VK_NEXT: case VK_END: case VK_HOME:
+        case VK_LEFT: case VK_UP: case VK_RIGHT: case VK_DOWN:
+        case VK_INSERT: case VK_DELETE:
+        case VK_DIVIDE: case VK_NUMLOCK: case VK_SNAPSHOT:
+            return true;
+        default:
+            return false;
+    }
+}
+
+static std::string HotkeyName(int vk) {
+    const UINT scan = MapVirtualKeyW(static_cast<UINT>(vk), MAPVK_VK_TO_VSC);
+    if (scan) {
+        LONG lparam = static_cast<LONG>(scan) << 16;
+        if (IsExtendedKey(vk)) lparam |= 1L << 24;
+        char name[64]{};
+        if (GetKeyNameTextA(lparam, name, sizeof(name)) > 0) return name;
+    }
+    // A key this layout has no name for still has to be identifiable, and the
+    // code is what the user typed into the INI.
+    char code[8]{};
+    std::snprintf(code, sizeof(code), "0x%02X", vk);
+    return code;
+}
+
+static void RegisterHotkeys(const Config& config) {
     using namespace cameraunlock::input;
 
     const HotkeyBinding bindings[] = {
-        { VK_HOME,      'T', Recenter },
-        { VK_END,       'Y', ToggleTracking },
-        { VK_PRIOR,     'G', CycleTrackingMode },
-        { yaw_mode_key, 'H', ToggleYawMode },
+        { config.recenter_key,   config.chord_recenter_key,   Recenter },
+        { config.toggle_key,     config.chord_toggle_key,     ToggleTracking },
+        { config.cycle_mode_key, config.chord_cycle_mode_key, CycleTrackingMode },
+        { config.yaw_mode_key,   config.chord_yaw_mode_key,   ToggleYawMode },
     };
 
     for (const HotkeyBinding& binding : bindings) {
@@ -161,10 +194,10 @@ static void Bootstrap() {
     WriteDefaultConfigIfMissing(exeDir);
     LoadConfig(exeDir, g_config);
     Log::Line("[boot] config: port=%u enableOnStartup=%d smoothing=%.2f position=%d "
-              "worldSpaceYaw=%d yawModeKey=0x%X",
+              "worldSpaceYaw=%d",
               static_cast<unsigned>(g_config.udp_port), g_config.enable_on_startup ? 1 : 0,
               g_config.smoothing, g_config.position_enabled ? 1 : 0,
-              g_config.world_space_yaw ? 1 : 0, g_config.yaw_mode_key);
+              g_config.world_space_yaw ? 1 : 0);
 
     ApplyConfigToPipeline(g_config, g_session);
     g_trackingEnabled.store(g_config.enable_on_startup);
@@ -185,10 +218,18 @@ static void Bootstrap() {
         return;
     }
 
-    RegisterHotkeys(g_config.yaw_mode_key);
+    RegisterHotkeys(g_config);
     g_active.store(true);
-    Log::Line("[boot] ready. Home/Ctrl+Shift+T recenter, End/Ctrl+Shift+Y toggle tracking, "
-              "PgUp/Ctrl+Shift+G cycle tracking mode, PgDn/Ctrl+Shift+H toggle yaw mode.");
+    Log::Line("[boot] ready. %s/Ctrl+Shift+%s recenter, %s/Ctrl+Shift+%s toggle tracking, "
+              "%s/Ctrl+Shift+%s cycle tracking mode, %s/Ctrl+Shift+%s toggle yaw mode.",
+              HotkeyName(g_config.recenter_key).c_str(),
+              HotkeyName(g_config.chord_recenter_key).c_str(),
+              HotkeyName(g_config.toggle_key).c_str(),
+              HotkeyName(g_config.chord_toggle_key).c_str(),
+              HotkeyName(g_config.cycle_mode_key).c_str(),
+              HotkeyName(g_config.chord_cycle_mode_key).c_str(),
+              HotkeyName(g_config.yaw_mode_key).c_str(),
+              HotkeyName(g_config.chord_yaw_mode_key).c_str());
 }
 
 static void LogSimStatusChange(SimStatus status) {
