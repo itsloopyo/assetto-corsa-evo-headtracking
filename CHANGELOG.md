@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1] - 2026-08-15
+
+### Added
+
+- make every hotkey remappable through [Hotkeys]
+- lock head yaw to the world's up axis
+
 All notable changes to this project are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),

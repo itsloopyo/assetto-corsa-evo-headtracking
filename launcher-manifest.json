@@ -2,7 +2,7 @@
   "schema_version": 2,
   "mod_info": {
     "name": "AssettoCorsaEvoHeadTracking",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "game_id": "assetto-corsa-evo"
   },
   "strategy": "AsiLoader",
