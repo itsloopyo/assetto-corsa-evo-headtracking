@@ -21,18 +21,47 @@ const float kNan = std::numeric_limits<float>::quiet_NaN();
 const float kInf = std::numeric_limits<float>::infinity();
 const float kFloatMax = std::numeric_limits<float>::max();
 
+// The shipped default of each smoothing key. They are not the same number, and
+// that is the whole point of the fallback argument.
+const float kLocalDefault  = 0.0f;
+const float kRemoteDefault = 0.15f;
+
 void SmoothingTests() {
     std::printf("SanitizeSmoothing\n");
-    Check(SanitizeSmoothing(0.0f) == 0.0f, "0 passes through");
-    Check(SanitizeSmoothing(0.15f) == 0.15f, "in-range passes through");
-    Check(SanitizeSmoothing(1.0f) == 1.0f, "1 passes through");
-    // Above 1 the speed lerp goes negative and the view extrapolates instead
-    // of settling.
-    Check(SanitizeSmoothing(5.0f) == 1.0f, "above 1 clamps to 1");
-    Check(SanitizeSmoothing(-2.0f) == 0.0f, "below 0 clamps to 0");
-    Check(SanitizeSmoothing(kNan) == 0.0f, "NaN -> 0");
-    Check(SanitizeSmoothing(kInf) == 0.0f, "Inf -> 0");
-    Check(SanitizeSmoothing(-kInf) == 0.0f, "-Inf -> 0");
+    Check(SanitizeSmoothing(0.0f, kLocalDefault) == 0.0f, "0 passes through");
+    Check(SanitizeSmoothing(0.15f, kLocalDefault) == 0.15f, "in-range passes through");
+    Check(SanitizeSmoothing(1.0f, kLocalDefault) == 1.0f, "1 passes through");
+
+    // A configured zero is a real setting - track me with no added latency -
+    // and it has to reach the processor as written. Nothing here may raise it,
+    // least of all on the remote key, whose fallback is 0.15.
+    Check(SanitizeSmoothing(0.0f, kRemoteDefault) == 0.0f,
+          "a configured 0 survives verbatim on the remote key, never floored to 0.15");
+
+    // Out of range saturates. Not because the math breaks - the core clamps its
+    // own interpolation speed to [0.1, 50], so a smoothing above 1 no longer
+    // drives the per-frame factor negative - but so the value the mod acts on
+    // and the value the INI advertises stay the same number.
+    Check(SanitizeSmoothing(5.0f, kLocalDefault) == 1.0f, "above 1 clamps to 1");
+    Check(SanitizeSmoothing(-2.0f, kRemoteDefault) == 0.0f,
+          "below 0 clamps to the bound, not to the fallback");
+
+    // Non-finite values take the fallback, and it is the fallback of the key
+    // that was read. A malformed RemoteSmoothing answered with the LOCAL
+    // default would hand a phone on WiFi zero smoothing on raw network jitter,
+    // which is the one case RemoteSmoothing exists to cover.
+    Check(SanitizeSmoothing(kNan, kLocalDefault) == 0.0f,
+          "a NaN LocalSmoothing falls back to the local default 0.0");
+    Check(SanitizeSmoothing(kNan, kRemoteDefault) == 0.15f,
+          "a NaN RemoteSmoothing falls back to the remote default 0.15, not to 0.0");
+    Check(SanitizeSmoothing(kInf, kRemoteDefault) == 0.15f,
+          "an Inf RemoteSmoothing falls back to the remote default 0.15");
+    Check(SanitizeSmoothing(-kInf, kRemoteDefault) == 0.15f,
+          "a -Inf RemoteSmoothing falls back to the remote default 0.15");
+    Check(SanitizeSmoothing(kInf, kLocalDefault) == 0.0f,
+          "an Inf LocalSmoothing falls back to the local default 0.0");
+    Check(SanitizeSmoothing(-kInf, kLocalDefault) == 0.0f,
+          "a -Inf LocalSmoothing falls back to the local default 0.0");
 }
 
 void SensitivityTests() {

@@ -63,7 +63,8 @@ void CheckMatchesDefaults(const Config& cfg, const char* source) {
     Check(cfg.invert_yaw == defaults.invert_yaw, "InvertYaw");
     Check(cfg.invert_pitch == defaults.invert_pitch, "InvertPitch");
     Check(cfg.invert_roll == defaults.invert_roll, "InvertRoll");
-    CheckClose(cfg.smoothing, defaults.smoothing, "Rotation Smoothing");
+    CheckClose(cfg.local_smoothing, defaults.local_smoothing, "LocalSmoothing");
+    CheckClose(cfg.remote_smoothing, defaults.remote_smoothing, "RemoteSmoothing");
 
     Check(cfg.position_enabled == defaults.position_enabled, "Position Enabled");
     CheckClose(cfg.position_sensitivity_x, defaults.position_sensitivity_x, "SensitivityX");
@@ -76,7 +77,6 @@ void CheckMatchesDefaults(const Config& cfg, const char* source) {
     CheckClose(cfg.limit_y, defaults.limit_y, "LimitY");
     CheckClose(cfg.limit_z, defaults.limit_z, "LimitZ");
     CheckClose(cfg.limit_z_back, defaults.limit_z_back, "LimitZBack");
-    CheckClose(cfg.position_smoothing, defaults.position_smoothing, "Position Smoothing");
 }
 
 void GeneratedDefaultsTests() {
@@ -100,12 +100,12 @@ void GeneratedDefaultsTests() {
     cfg.chord_recenter_key = cfg.chord_toggle_key = cfg.chord_cycle_mode_key = 0x71;
     cfg.yaw_sensitivity = cfg.pitch_sensitivity = cfg.roll_sensitivity = 9.0f;
     cfg.invert_yaw = cfg.invert_pitch = cfg.invert_roll = true;
-    cfg.smoothing = 0.99f;
+    cfg.local_smoothing = 0.99f;
+    cfg.remote_smoothing = 0.99f;
     cfg.position_enabled = false;
     cfg.position_sensitivity_x = cfg.position_sensitivity_y = cfg.position_sensitivity_z = 9.0f;
     cfg.invert_position_x = cfg.invert_position_y = cfg.invert_position_z = true;
     cfg.limit_x = cfg.limit_y = cfg.limit_z = cfg.limit_z_back = 9.0f;
-    cfg.position_smoothing = 0.99f;
 
     LoadConfig(dir, cfg);
     CheckMatchesDefaults(cfg, "The generated file loads back as the built-in defaults");
@@ -131,7 +131,8 @@ void ReferenceIniTests() {
     // that ships as documentation lives.
     Config cfg;
     cfg.udp_port = 5555;
-    cfg.smoothing = 0.99f;
+    cfg.local_smoothing = 0.99f;
+    cfg.remote_smoothing = 0.99f;
     cfg.limit_x = 9.0f;
     cfg.recenter_key = cfg.toggle_key = cfg.cycle_mode_key = 0x70;
     cfg.chord_recenter_key = cfg.chord_toggle_key = cfg.chord_cycle_mode_key = 0x71;

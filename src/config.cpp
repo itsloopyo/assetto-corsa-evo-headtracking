@@ -14,6 +14,12 @@ namespace ace_ht {
 
 static constexpr char kIniName[] = "HeadTracking.ini";
 
+// The shipped default for each smoothing key, mirroring the Config member
+// initialisers. They are named here because a refused value has to land on the
+// default of the key it came from, and the two keys do not share one.
+static constexpr float kDefaultLocalSmoothing  = 0.0f;
+static constexpr float kDefaultRemoteSmoothing = 0.15f;
+
 // The file a fresh install lands with. Values here must stay in step with the
 // Config struct's member initialisers - the config_defaults test locks that by
 // generating this file and loading it back over a poisoned Config.
@@ -48,7 +54,10 @@ static constexpr char kDefaultIniText[] =
     "InvertYaw=0\n"
     "InvertPitch=0\n"
     "InvertRoll=0\n"
-    "Smoothing=0.0\n\n"
+    "; Smoothing covers rotation and position alike, and the value used is picked\n"
+    "; per connection from where the tracker sends from. 0.0 none .. 1.0 heavy.\n"
+    "LocalSmoothing=0.0\n"
+    "RemoteSmoothing=0.15\n\n"
     "[Position]\n"
     "Enabled=1\n"
     "SensitivityX=1.0\n"
@@ -60,8 +69,7 @@ static constexpr char kDefaultIniText[] =
     "LimitX=0.30\n"
     "LimitY=0.20\n"
     "LimitZ=0.40\n"
-    "LimitZBack=0.10\n"
-    "Smoothing=0.15\n";
+    "LimitZBack=0.10\n";
 
 static std::string IniPath(const std::string& exe_dir) {
     return exe_dir + "\\" + kIniName;
@@ -85,10 +93,38 @@ static float ReadSensitivity(const cameraunlock::IniReader& ini, const char* sec
     return UseSanitized(key, raw, SanitizeSensitivity(raw));
 }
 
+// `shipped_default` is the default of the key being read, not one shared by
+// both smoothing keys: LocalSmoothing falls back to 0.0, RemoteSmoothing to
+// 0.15. A single fallback would answer a malformed RemoteSmoothing with the
+// LOCAL default, so a phone on WiFi would get no smoothing at all on raw
+// network jitter, which is the one case RemoteSmoothing exists to cover.
 static float ReadSmoothing(const cameraunlock::IniReader& ini, const char* section,
-                           const char* key, float fallback) {
-    const float raw = ini.ReadFloat(section, key, fallback);
-    return UseSanitized(key, raw, SanitizeSmoothing(raw));
+                           const char* key, float current, float shipped_default) {
+    const float raw = ini.ReadFloat(section, key, current);
+    return UseSanitized(key, raw, SanitizeSmoothing(raw, shipped_default));
+}
+
+// Warned once per process rather than once per load: config is reloadable, and
+// repeating this on every reload buries it.
+//
+// The old value is deliberately NOT migrated into the new keys. The single
+// Smoothing value carried a hidden 0.15 floor, so the number in an existing
+// config does not mean what it used to: copying it across would hand a local
+// user smoothing they never chose under the new semantics, and copying it into
+// only one of the two keys would be a guess about which connection they were on.
+static void WarnRetiredSmoothingKey(const cameraunlock::IniReader& ini,
+                                    const char* section, const char* key) {
+    static bool warned = false;
+    if (warned) return;
+    if (ini.ReadString(section, key, "").empty()) return;
+    warned = true;
+    Log::Line(
+        "[config] key [%s] %s has been retired and is IGNORED. Smoothing is now two "
+        "keys: LocalSmoothing (default 0, applies to a tracker on this machine) and "
+        "RemoteSmoothing (default 0.15, applies to a tracker on the network). The "
+        "old value is not migrated because the semantics changed - it carried a "
+        "hidden 0.15 floor that no longer exists. Set the two new keys.",
+        section, key);
 }
 
 // Virtual key codes are published as hex and that is how the shipped INI writes
@@ -173,7 +209,12 @@ void LoadConfig(const std::string& exe_dir, Config& out) {
     out.invert_yaw         = ini.ReadBool ("Rotation", "InvertYaw",        out.invert_yaw);
     out.invert_pitch       = ini.ReadBool ("Rotation", "InvertPitch",      out.invert_pitch);
     out.invert_roll        = ini.ReadBool ("Rotation", "InvertRoll",       out.invert_roll);
-    out.smoothing          = ReadSmoothing(ini, "Rotation", "Smoothing",   out.smoothing);
+    out.local_smoothing    = ReadSmoothing(ini, "Rotation", "LocalSmoothing",  out.local_smoothing,
+                                           kDefaultLocalSmoothing);
+    out.remote_smoothing   = ReadSmoothing(ini, "Rotation", "RemoteSmoothing", out.remote_smoothing,
+                                           kDefaultRemoteSmoothing);
+    WarnRetiredSmoothingKey(ini, "Rotation", "Smoothing");
+    WarnRetiredSmoothingKey(ini, "Position", "Smoothing");
 
     out.position_enabled   = ini.ReadBool ("Position", "Enabled",          out.position_enabled);
     out.position_sensitivity_x = ReadSensitivity(ini, "Position", "SensitivityX", out.position_sensitivity_x);
@@ -186,7 +227,6 @@ void LoadConfig(const std::string& exe_dir, Config& out) {
     out.limit_y            = ReadLimit(ini, "LimitY",     out.limit_y);
     out.limit_z            = ReadLimit(ini, "LimitZ",     out.limit_z);
     out.limit_z_back       = ReadLimit(ini, "LimitZBack", out.limit_z_back);
-    out.position_smoothing = ReadSmoothing(ini, "Position", "Smoothing", out.position_smoothing);
 }
 
 void WriteDefaultConfigIfMissing(const std::string& exe_dir) {

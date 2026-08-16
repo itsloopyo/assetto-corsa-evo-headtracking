@@ -118,8 +118,13 @@ RollSensitivity=1.0
 InvertYaw=0
 InvertPitch=0
 InvertRoll=0
-; 0.0 responsive - 1.0 heavy. A 0.15 floor is always applied internally.
-Smoothing=0.0
+; Smoothing covers rotation and position alike, and the value used is picked
+; per connection from where the tracker sends from. 0.0 none .. 1.0 heavy.
+; LocalSmoothing: tracker running on this machine (loopback). Nothing floors it,
+; so 0.0 really is zero-latency tracking.
+; RemoteSmoothing: tracker is a device on the network, e.g. a phone over WiFi.
+LocalSmoothing=0.0
+RemoteSmoothing=0.15
 
 [Position]
 Enabled=1
@@ -135,7 +140,6 @@ LimitX=0.30
 LimitY=0.20
 LimitZ=0.40
 LimitZBack=0.10
-Smoothing=0.15
 ```
 
 Hotkeys are codes, not key names: `RecenterKey=Insert` is refused, `RecenterKey=0x2D` is the same key. They are read as hex, so a bare `24` is `0x24`. Common ones are `Home` `0x24`, `End` `0x23`, `Insert` `0x2D`, `Delete` `0x2E`, `Page Up` `0x21`, `Page Down` `0x22`, `F1`-`F12` `0x70`-`0x7B`, `A`-`Z` `0x41`-`0x5A`, numpad `0`-`9` `0x60`-`0x69`; the [full list](https://learn.microsoft.com/windows/win32/inputdev/virtual-key-codes) is Microsoft's. `Ctrl`, `Shift` and `Alt` cannot be bound - they are what the chord itself is made of. A code the mod refuses leaves that action on its previous key and says so in the log; the log also names every key it ended up bound to, so check there first if a remap did not take.
@@ -157,7 +161,7 @@ Hotkeys are codes, not key names: `RecenterKey=Insert` is refused, `RecenterKey=
 
 **Jittery or unstable tracking.**
 
-- Raise `Smoothing` in `[Rotation]` and `[Position]`. Start at `0.3`.
+- Raise the smoothing value your tracker actually uses: `LocalSmoothing` if it runs on this PC, `RemoteSmoothing` if it is a phone or other device on the network. Start at `0.3`. The log line printed when a tracker connects says which of the two is in effect.
 - Webcam trackers need even lighting and a clear view of your face; a dark room or a strong backlight makes the pose wander.
 - On Wi-Fi, a phone app on the 5 GHz band is far steadier than 2.4 GHz.
 

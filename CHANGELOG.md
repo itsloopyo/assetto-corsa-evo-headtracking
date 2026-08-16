@@ -1,5 +1,22 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Smoothing is now two settings instead of one: `[Rotation] LocalSmoothing`
+  (default `0.0`) applies when the tracker runs on this PC, `[Rotation]
+  RemoteSmoothing` (default `0.15`) applies when it is a phone or other device
+  on the network. Which one is used is decided per connection from the packet's
+  source address and is re-evaluated when the source changes, so switching
+  between a local OpenTrack instance and a phone takes effect without a restart.
+- Removed `[Rotation] Smoothing` and `[Position] Smoothing`. Both new values
+  cover rotation and position alike, so there is no separate position smoothing
+  setting.
+- Removed the hidden 0.15 smoothing floor. It silently overrode whatever the
+  user set, so a tracker on the same machine now gets zero-latency tracking by
+  default.
+
 ## [1.0.1] - 2026-08-15
 
 ### Added
