@@ -25,7 +25,7 @@
 :: --- CONFIG BLOCK ---
 set "GAME_ID=assetto-corsa-evo"
 set "MOD_DISPLAY_NAME=Assetto Corsa EVO Head Tracking"
-set "MOD_DLLS=AssettoCorsaEvoHeadTracking.asi"
+set "MOD_DLLS=AssettoCorsaEvoHeadTracking.asi AssettoCorsaEvoHeadTracking.log AssettoCorsaEvoHeadTracking.prev.log"
 set "MOD_INTERNAL_NAME=AssettoCorsaEvoHeadTracking"
 set "STATE_FILE=.headtracking-state.json"
 set "FRAMEWORK_TYPE=ASILoader"

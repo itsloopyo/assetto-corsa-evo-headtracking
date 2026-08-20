@@ -13,12 +13,10 @@ struct Config {
 
     // Virtual key codes. Every action has a nav-cluster key and a
     // Ctrl+Shift+<key> chord, and both fire it - the chord is there for
-    // keyboards with no nav cluster. Defaults: Home, End, Page Up, and the
-    // T/Y/G chord letters.
-    int recenter_key = 0x24;
+    // keyboards with no nav cluster. Defaults: End, Page Up, and the Y/G
+    // chord letters.
     int toggle_key = 0x23;
     int cycle_mode_key = 0x21;
-    int chord_recenter_key = 0x54;
     int chord_toggle_key = 0x59;
     int chord_cycle_mode_key = 0x47;
 

@@ -65,10 +65,10 @@ Config Load(const char* body) {
 void RemapTests() {
     std::printf("Remapping a hotkey\n");
 
-    const Config both = Load("[Hotkeys]\nRecenterKey=0x2D\nChordRecenterKey=0x4B\n");
-    Check(both.recenter_key == 0x2D && both.chord_recenter_key == 0x4B,
+    const Config both = Load("[Hotkeys]\nToggleKey=0x2D\nChordToggleKey=0x4B\n");
+    Check(both.toggle_key == 0x2D && both.chord_toggle_key == 0x4B,
           "moves both halves of an action");
-    Check(both.toggle_key == Config{}.toggle_key,
+    Check(both.cycle_mode_key == Config{}.cycle_mode_key,
           "and leaves the actions the file did not name alone");
 
     const Config bare = Load("[Hotkeys]\nToggleKey=2E\n");
@@ -88,10 +88,10 @@ void RefusedValuesKeepThePreviousBindingTests() {
     Check(Load("[Hotkeys]\nToggleKey=0x11\n").toggle_key == defaults.toggle_key,
           "a modifier leaves the action on its previous key");
 
-    Check(Load("[Hotkeys]\nRecenterKey=0\n").recenter_key == defaults.recenter_key,
+    Check(Load("[Hotkeys]\nCycleModeKey=0\n").cycle_mode_key == defaults.cycle_mode_key,
           "0 is not a key, and leaves the action on its previous key");
 
-    Check(Load("[Hotkeys]\nRecenterKey=0x220\n").recenter_key == defaults.recenter_key,
+    Check(Load("[Hotkeys]\nCycleModeKey=0x220\n").cycle_mode_key == defaults.cycle_mode_key,
           "a code past 0xFE leaves the action on its previous key");
 
     // A name is what a user reaches for first, and half of them are made of hex
@@ -103,7 +103,7 @@ void RefusedValuesKeepThePreviousBindingTests() {
     Check(Load("[Hotkeys]\nToggleKey=Delete\n").toggle_key == defaults.toggle_key,
           "and a name that is all hex digits is refused too");
 
-    Check(Load("[Hotkeys]\nRecenterKey=0x2D ; Insert\n").recenter_key == 0x2D,
+    Check(Load("[Hotkeys]\nCycleModeKey=0x2D ; Insert\n").cycle_mode_key == 0x2D,
           "a trailing comment is not junk, and the code is still read");
 
     Check(Load("[Hotkeys]\nToggleKey=\n").toggle_key == defaults.toggle_key,

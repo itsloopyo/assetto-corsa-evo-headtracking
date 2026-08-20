@@ -25,8 +25,6 @@
 namespace ace_ht {
 
 using Session = cameraunlock::HeadTrackingSession<cameraunlock::UdpReceiver>;
-static_assert(Session::kHasRemoteRecenter,
-              "UdpReceiver must forward TryConsumeRecenterRequest for tracker-app recentering");
 // Without IsRemoteConnection() on the receiver the session silently falls back
 // to LocalSmoothing forever, with nothing at the call site to show it.
 static_assert(Session::kHasRemoteConnection,
@@ -70,7 +68,7 @@ static void ApplyConfigToPipeline(const Config& config, Session& session) {
     auto& proc = session.GetProcessor();
     proc.SetSensitivity(sensitivity);
 
-    cameraunlock::PositionSettings position(
+    cameraunlock::PositionSettings position = cameraunlock::PositionSettings::Symmetric(
         config.position_sensitivity_x,
         config.position_sensitivity_y,
         config.position_sensitivity_z,
@@ -108,11 +106,6 @@ static void LogConnectionLocality() {
                   g_config.local_smoothing, g_config.remote_smoothing, isRemote));
 }
 
-static void Recenter() {
-    g_session.Recenter();
-    Log::Line("[input] recenter");
-}
-
 static void ToggleTracking() {
     const bool on = !g_trackingEnabled.load();
     g_trackingEnabled.store(on);
@@ -141,8 +134,8 @@ struct HotkeyBinding {
 
 // GetKeyNameText wants the scan code in bits 16-23 and the extended-key flag in
 // bit 24. The nav cluster, the arrows and a few others are extended keys, and
-// without that bit they name their numpad twins - a recenter left on Home would
-// report itself in the log as "Num 7", which is the one thing this line exists
+// without that bit they name their numpad twins - a toggle left on End would
+// report itself in the log as "Num 1", which is the one thing this line exists
 // to get right now that the key is the user's to choose.
 static bool IsExtendedKey(int vk) {
     switch (vk) {
@@ -175,7 +168,6 @@ static void RegisterHotkeys(const Config& config) {
     using namespace cameraunlock::input;
 
     const HotkeyBinding bindings[] = {
-        { config.recenter_key,   config.chord_recenter_key,   Recenter },
         { config.toggle_key,     config.chord_toggle_key,     ToggleTracking },
         { config.cycle_mode_key, config.chord_cycle_mode_key, CycleTrackingMode },
     };
@@ -241,10 +233,8 @@ static void Bootstrap() {
 
     RegisterHotkeys(g_config);
     g_active.store(true);
-    Log::Line("[boot] ready. %s/Ctrl+Shift+%s recenter, %s/Ctrl+Shift+%s toggle tracking, "
+    Log::Line("[boot] ready. %s/Ctrl+Shift+%s toggle tracking, "
               "%s/Ctrl+Shift+%s cycle tracking mode.",
-              HotkeyName(g_config.recenter_key).c_str(),
-              HotkeyName(g_config.chord_recenter_key).c_str(),
               HotkeyName(g_config.toggle_key).c_str(),
               HotkeyName(g_config.chord_toggle_key).c_str(),
               HotkeyName(g_config.cycle_mode_key).c_str(),
@@ -290,8 +280,10 @@ void OnCameraTransformComputed(float* transform) {
     const SimStatus status = ReadSimStatus();
     LogSimStatusChange(status);
     if (IsSimRunning(status)) {
-        g_session.Update(dt);
-        LogConnectionLocality();
+        // Only reported once a packet has actually parsed. The receiver's
+        // locality flag starts at false, so logging it before then reads as
+        // proof a local tracker connected when nothing has arrived.
+        if (g_session.Update(dt)) LogConnectionLocality();
     }
 
     const long long frame = g_frameCounter.fetch_add(1, std::memory_order_relaxed);
@@ -301,6 +293,17 @@ void OnCameraTransformComputed(float* transform) {
     g_session.GetPositionOffset(pose.lean_x, pose.lean_y, pose.lean_z);
 
     LogFirstFrames(frame, transform, haveRotation, pose);
+
+    // Latched. The diagnostic frames above are logged the moment the hook first
+    // runs, which is long before a tracker is usually connected, so without this
+    // nothing in the log ever says the head pose reached the camera. Ahead of
+    // the tracking-enabled gate, or one press of End hides the evidence.
+    static std::atomic<bool> poseReachedLogged{false};
+    if (haveRotation && !poseReachedLogged.exchange(true, std::memory_order_relaxed)) {
+        Log::Line("[camera] head pose reached the camera hook on frame %lld: "
+                  "yaw=%.2f pitch=%.2f roll=%.2f",
+                  frame, pose.yaw, pose.pitch, pose.roll);
+    }
 
     // No tracker data, or tracking toggled off: leave the engine's camera
     // exactly as it computed it.

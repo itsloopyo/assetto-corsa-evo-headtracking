@@ -58,13 +58,13 @@ The mod writes `HeadTracking.ini` next to the EXE on first launch.
 1. Connect the headset to the PC over Air Link or Virtual Desktop and start SteamVR.
 2. In OpenTrack, set Input to **SteamVR** and pick the headset as the tracked device.
 3. Set Output to UDP over network, `127.0.0.1` port `4242`.
-4. Wear the headset on your forehead or hold it steady facing the monitor, then press `Home` in game to recenter.
+4. Wear the headset on your forehead or hold it steady facing the monitor, then centre it in OpenTrack.
 
 ### Webcam Setup
 
 1. In OpenTrack, set Input to **neuralnet tracker** and select your webcam.
 2. Set Output to UDP over network, `127.0.0.1` port `4242`.
-3. Sit in your normal driving position and press `Home` in game to recenter.
+3. Sit in your normal driving position and centre in OpenTrack.
 
 ### Phone App Setup
 
@@ -76,7 +76,6 @@ Two equivalent binding sets, use whichever your keyboard has:
 
 | Action              | Nav-cluster | Chord           |
 |---------------------|-------------|-----------------|
-| Recenter            | `Home`      | `Ctrl+Shift+T`  |
 | Toggle tracking     | `End`       | `Ctrl+Shift+Y`  |
 | Cycle tracking mode | `Page Up`   | `Ctrl+Shift+G`  |
 
@@ -103,10 +102,8 @@ EnableOnStartup=1
 [Hotkeys]
 ; Windows virtual key codes, in hex. Each action has a nav-cluster key and a
 ; Ctrl+Shift+<key> chord, and both fire it - remap either or both.
-RecenterKey=0x24
 ToggleKey=0x23
 CycleModeKey=0x21
-ChordRecenterKey=0x54
 ChordToggleKey=0x59
 ChordCycleModeKey=0x47
 
@@ -142,7 +139,7 @@ LimitZ=0.40
 LimitZBack=0.10
 ```
 
-Hotkeys are codes, not key names: `RecenterKey=Insert` is refused, `RecenterKey=0x2D` is the same key. They are read as hex, so a bare `24` is `0x24`. Common ones are `Home` `0x24`, `End` `0x23`, `Insert` `0x2D`, `Delete` `0x2E`, `Page Up` `0x21`, `Page Down` `0x22`, `F1`-`F12` `0x70`-`0x7B`, `A`-`Z` `0x41`-`0x5A`, numpad `0`-`9` `0x60`-`0x69`; the [full list](https://learn.microsoft.com/windows/win32/inputdev/virtual-key-codes) is Microsoft's. `Ctrl`, `Shift` and `Alt` cannot be bound - they are what the chord itself is made of. A code the mod refuses leaves that action on its previous key and says so in the log; the log also names every key it ended up bound to, so check there first if a remap did not take.
+Hotkeys are codes, not key names: `ToggleKey=Insert` is refused, `ToggleKey=0x2D` is the same key. They are read as hex, so a bare `24` is `0x24`. Common ones are `Home` `0x24`, `End` `0x23`, `Insert` `0x2D`, `Delete` `0x2E`, `Page Up` `0x21`, `Page Down` `0x22`, `F1`-`F12` `0x70`-`0x7B`, `A`-`Z` `0x41`-`0x5A`, numpad `0`-`9` `0x60`-`0x69`; the [full list](https://learn.microsoft.com/windows/win32/inputdev/virtual-key-codes) is Microsoft's. `Ctrl`, `Shift` and `Alt` cannot be bound - they are what the chord itself is made of. A code the mod refuses leaves that action on its previous key and says so in the log; the log also names every key it ended up bound to, so check there first if a remap did not take.
 
 ## Troubleshooting
 
@@ -167,7 +164,7 @@ Hotkeys are codes, not key names: `RecenterKey=Insert` is refused, `RecenterKey=
 
 **Wrong rotation axis or the view drifts off centre.**
 
-- Press `Home` to recenter while sitting in your normal driving position.
+- Centre in your tracker app while sitting in your normal driving position. The mod applies the pose it is sent as absolute and keeps no centre of its own.
 - If an axis moves the wrong way, set the matching `InvertYaw`, `InvertPitch` or `InvertRoll` to `1`.
 
 **The view keeps following my head in the pause menu.**

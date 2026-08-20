@@ -50,10 +50,8 @@ void CheckMatchesDefaults(const Config& cfg, const char* source) {
     Check(cfg.udp_port == defaults.udp_port, "UdpPort");
     Check(cfg.enable_on_startup == defaults.enable_on_startup, "EnableOnStartup");
 
-    Check(cfg.recenter_key == defaults.recenter_key, "RecenterKey");
     Check(cfg.toggle_key == defaults.toggle_key, "ToggleKey");
     Check(cfg.cycle_mode_key == defaults.cycle_mode_key, "CycleModeKey");
-    Check(cfg.chord_recenter_key == defaults.chord_recenter_key, "ChordRecenterKey");
     Check(cfg.chord_toggle_key == defaults.chord_toggle_key, "ChordToggleKey");
     Check(cfg.chord_cycle_mode_key == defaults.chord_cycle_mode_key, "ChordCycleModeKey");
 
@@ -96,8 +94,6 @@ void GeneratedDefaultsTests() {
     Config cfg;
     cfg.udp_port = 5555;
     cfg.enable_on_startup = false;
-    cfg.recenter_key = cfg.toggle_key = cfg.cycle_mode_key = 0x70;
-    cfg.chord_recenter_key = cfg.chord_toggle_key = cfg.chord_cycle_mode_key = 0x71;
     cfg.yaw_sensitivity = cfg.pitch_sensitivity = cfg.roll_sensitivity = 9.0f;
     cfg.invert_yaw = cfg.invert_pitch = cfg.invert_roll = true;
     cfg.local_smoothing = 0.99f;
@@ -134,8 +130,6 @@ void ReferenceIniTests() {
     cfg.local_smoothing = 0.99f;
     cfg.remote_smoothing = 0.99f;
     cfg.limit_x = 9.0f;
-    cfg.recenter_key = cfg.toggle_key = cfg.cycle_mode_key = 0x70;
-    cfg.chord_recenter_key = cfg.chord_toggle_key = cfg.chord_cycle_mode_key = 0x71;
 
     LoadConfig(ACE_SOURCE_DIR, cfg);
     CheckMatchesDefaults(cfg, "The reference HeadTracking.ini at the repo root");

@@ -8,6 +8,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- Log a one-shot line the first time a head pose reaches the camera hook. The
+  existing per-frame diagnostic only covers the first three frames, which run
+  before a tracker is usually connected, so nothing in the log confirmed the
+  pose ever got that far. It is logged ahead of the tracking-enabled check, so
+  toggling tracking off does not hide it.
+
 ### Changed
 
 - Smoothing is now two settings instead of one: `[Rotation] LocalSmoothing`
@@ -22,6 +30,10 @@
 - Removed the hidden 0.15 smoothing floor. It silently overrode whatever the
   user set, so a tracker on the same machine now gets zero-latency tracking by
   default.
+- The tracker owns the centre. The recenter hotkeys (`Home` / `Ctrl+Shift+T`)
+  and their `RecenterKey` / `ChordRecenterKey` settings are gone, along with the
+  mod-side centre capture; the tracker pose is applied as absolute. Centre the
+  view in your tracker app instead.
 
 ## [1.0.1] - 2026-08-15
 

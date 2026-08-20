@@ -28,7 +28,6 @@ static constexpr char kDefaultIniText[] =
     "; Edit values, restart the game to apply.\n"
     ";\n"
     "; Controls (all remappable, see [Hotkeys]):\n"
-    ";           Home / Ctrl+Shift+T   recenter\n"
     ";           End  / Ctrl+Shift+Y   toggle tracking\n"
     ";           PgUp / Ctrl+Shift+G   cycle tracking mode (rotation and position\n"
     ";                                 / rotation only / position only)\n\n"
@@ -41,10 +40,8 @@ static constexpr char kDefaultIniText[] =
     "; Ctrl+Shift+<key> chord, and both fire it - remap either or both.\n"
     "; Common codes: Home 0x24, End 0x23, Insert 0x2D, Delete 0x2E, PgUp 0x21,\n"
     "; PgDn 0x22, F1-F12 0x70-0x7B, A-Z 0x41-0x5A, numpad 0-9 0x60-0x69.\n"
-    "RecenterKey=0x24\n"
     "ToggleKey=0x23\n"
     "CycleModeKey=0x21\n"
-    "ChordRecenterKey=0x54\n"
     "ChordToggleKey=0x59\n"
     "ChordCycleModeKey=0x47\n\n"
     "[Rotation]\n"
@@ -196,10 +193,8 @@ void LoadConfig(const std::string& exe_dir, Config& out) {
 
     out.enable_on_startup  = ini.ReadBool ("General",  "EnableOnStartup",  out.enable_on_startup);
 
-    out.recenter_key          = ReadKey(ini, "RecenterKey",       out.recenter_key);
     out.toggle_key            = ReadKey(ini, "ToggleKey",         out.toggle_key);
     out.cycle_mode_key        = ReadKey(ini, "CycleModeKey",      out.cycle_mode_key);
-    out.chord_recenter_key    = ReadKey(ini, "ChordRecenterKey",  out.chord_recenter_key);
     out.chord_toggle_key      = ReadKey(ini, "ChordToggleKey",    out.chord_toggle_key);
     out.chord_cycle_mode_key  = ReadKey(ini, "ChordCycleModeKey", out.chord_cycle_mode_key);
 
