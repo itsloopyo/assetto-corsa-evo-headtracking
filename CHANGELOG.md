@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.0] - 2026-08-20
+
+### Added
+
+- drop the recenter hotkey, the tracker owns the centre
+
 ## [1.0.2] - 2026-08-17
 
 ### Added
