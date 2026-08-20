@@ -26,6 +26,19 @@ jobs:
           $bust = "cb$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())"
           $mods = (Invoke-RestMethod "https://lopari.app/mods.json?$bust").mods
           $entry = @($mods) | Where-Object { $_.repo -eq "${{ github.repository }}" }
+          # The served catalog is ALREADY filtered to public entries - update-metadata.mjs
+          # writes the Pages copy as { ...catalog, mods: publicMods } - so there is no
+          # public/private test to make here; anything we find is public by construction.
+          #
+          # External is our own heuristic, not a field lopari consults: those installs route
+          # to a third-party mod manager and ship no *-installer.zip, and an installer zip is
+          # what update-metadata.mjs actually requires before it will stamp a pin.
+          #
+          # Known gap, deliberately left loud: lopari also skips any entry that is not yet
+          # `released` and has no dev-release, so a mod's FIRST stable release is never
+          # auto-pinned and the poll below runs its deadline out. That failure is correct -
+          # the Run in Lopari link really would be stale - and the timeout message says so.
+          if ($entry -and @($entry)[0].install_strategy -eq 'External') { $entry = $null }
           if ($entry -and -not $env:LOPARI_APP_ACTIONS_TOKEN) {
             Write-Host "::error::${{ github.repository }} is in the Lopari catalog but LOPARI_APP_ACTIONS_TOKEN is not set - the catalog pin can't be synced before the announcement, so the Run in Lopari link would serve the previous release. Set the fine-grained PAT (Actions:write on itsloopyo/lopari.app only) and re-run."
             exit 1
@@ -122,33 +135,45 @@ jobs:
         shell: pwsh
         env:
           LOPARI_APP_ACTIONS_TOKEN: ${{ secrets.LOPARI_APP_ACTIONS_TOKEN }}
+          # See the note in discord-announce-step.yml: a tag name is attacker-controlled
+          # text and must not be interpolated into a run block that holds a token.
+          REF_NAME: ${{ github.ref_name }}
         run: |
           $repo = "${{ github.repository }}"
-          $version = "${{ github.ref_name }}" -replace '^v', ''
+          $version = $env:REF_NAME -replace '^v', ''
           function Get-PinnedVersion {
             $bust = "cb$([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds())"
             $mods = (Invoke-RestMethod "https://lopari.app/mods.json?$bust").mods
             $entry = @($mods) | Where-Object { $_.repo -eq $repo }
             if (-not $entry) { return $null }
+            # See the note on the prerequisites step above: the served catalog is already
+            # public-only, External is our stand-in for "ships no installer zip", and a
+            # first release genuinely has no pin to find until lopari stamps one.
+            if (@($entry)[0].install_strategy -eq 'External') { return $null }
             return @{ inCatalog = $true; pinned = $entry.release.pinned.version }
           }
           $state = Get-PinnedVersion
           if (-not $state) {
-            Write-Host "::notice::$repo has no Lopari catalog entry - the announce link will use the /run/ page's GitHub fallback."
+            Write-Host "::notice::$repo has no syncable Lopari catalog pin (no entry, or External install strategy) - the /run/ page serves its own install steps."
             exit 0
           }
           if ($state.pinned -eq $version) {
             Write-Host "Catalog already pins $version."
             exit 0
           }
-          Invoke-RestMethod -Method Post `
-            -Uri 'https://api.github.com/repos/itsloopyo/lopari.app/actions/workflows/update-pins.yml/dispatches' `
-            -Headers @{ Authorization = "Bearer $env:LOPARI_APP_ACTIONS_TOKEN"; Accept = 'application/vnd.github+json' } `
-            -ContentType 'application/json' -Body '{"ref":"main"}'
+          function Request-Repin {
+            Invoke-RestMethod -Method Post `
+              -Uri 'https://api.github.com/repos/itsloopyo/lopari.app/actions/workflows/update-pins.yml/dispatches' `
+              -Headers @{ Authorization = "Bearer $env:LOPARI_APP_ACTIONS_TOKEN"; Accept = 'application/vnd.github+json' } `
+              -ContentType 'application/json' -Body '{"ref":"main"}'
+          }
+          Request-Repin
           Write-Host "Requested lopari.app catalog re-pin; waiting for $version to go live..."
           $deadline = [DateTime]::UtcNow.AddMinutes(10)
+          $tick = 0
           while ([DateTime]::UtcNow -lt $deadline) {
             Start-Sleep -Seconds 15
+            $tick++
             try {
               $state = Get-PinnedVersion
             } catch {
@@ -161,6 +186,13 @@ jobs:
               exit 0
             }
             Write-Host "  still pinned at $($state.pinned)..."
+            # Two releases dispatching within a minute of each other put two pin
+            # runs on the same base commit; the loser's push is rejected and
+            # nothing retries it before the hourly schedule. Ask again.
+            if ($tick % 5 -eq 0) {
+              Write-Host "  re-requesting the catalog re-pin..."
+              Request-Repin
+            }
           }
           Write-Host "::error::Timed out waiting for lopari.app to pin $version (still $($state.pinned)). Check https://github.com/itsloopyo/lopari.app/actions, then re-run this job - the release exists; only the pin sync and announcement are pending."
           exit 1
@@ -169,20 +201,26 @@ jobs:
         shell: pwsh
         env:
           DISCORD_RELEASE_WEBHOOK: ${{ secrets.DISCORD_RELEASE_WEBHOOK }}
+          # Read through the environment, never interpolated into the script body.
+          # ${{ }} is substituted textually before pwsh parses the run block, so a tag
+          # name containing a double quote closes the assignment and the remainder runs
+          # as code - in a job that holds the release webhook and contents:write.
+          REF_NAME: ${{ github.ref_name }}
         run: |
           if (-not $env:DISCORD_RELEASE_WEBHOOK) {
             Write-Host "::error::DISCORD_RELEASE_WEBHOOK secret is not set - the release was created but not announced. Set it with 'gh secret set DISCORD_RELEASE_WEBHOOK --repo ${{ github.repository }}' and re-run this job."
             exit 1
           }
-          $tag  = "${{ github.ref_name }}"
+          $tag  = $env:REF_NAME
           $repo = "${{ github.repository }}"
+          $name = (Get-Culture).TextInfo.ToTitleCase(((($repo -split '/')[-1]) -replace '-head-?tracking$','' -replace '-',' '))
           $url  = "https://github.com/$repo/releases/tag/$tag"
           $payload = @{
             username = 'Mod Releases'
             embeds   = @(@{
-              title       = "Assetto Corsa EVO Head Tracking $tag"
+              title       = "$name Head Tracking $tag"
               url         = $url
-              description = "A new release of **Assetto Corsa EVO Head Tracking** is live.`n`n**[Download the $tag release]($url)**`n**[Run in Lopari](https://lopari.app/run/?repo=$repo)**"
+              description = "A new release of **$name Head Tracking** is live.`n`n**[Download the $tag release]($url)**`n**[Run in Lopari](https://lopari.app/run/?repo=$repo)**"
               color       = 5814783
             })
           } | ConvertTo-Json -Depth 5
