@@ -9,42 +9,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Log a one-shot line the first time a head pose reaches the camera hook. The
-  existing per-frame diagnostic only covers the first three frames, which run
-  before a tracker is usually connected, so nothing in the log confirmed the
-  pose ever got that far. It is logged ahead of the tracking-enabled check, so
-  toggling tracking off does not hide it.
+- A one-shot log line the first time a head pose reaches the camera hook. The
+  per-frame diagnostic only covers the first three frames, which run before a
+  tracker is usually connected, so nothing in the log confirmed the pose ever
+  got that far. It is logged ahead of the tracking-enabled check, so toggling
+  tracking off does not hide it.
 
 ### Changed
 
-- The tracker owns the centre. The recenter hotkeys (`Home` / `Ctrl+Shift+T`)
-  and their `RecenterKey` / `ChordRecenterKey` settings are gone, along with the
-  mod-side centre capture; the tracker pose is applied as absolute. Centre the
-  view in your tracker app instead.
+- The tracker owns the centre. The pose it sends is applied as absolute, so
+  centre the view in your tracker app: OpenTrack's Center bind, SteamVR, or
+  your phone app's CENTER button.
+
+### Removed
+
+- The recenter hotkeys (`Home` / `Ctrl+Shift+T`), the `RecenterKey` and
+  `ChordRecenterKey` settings, and the mod-side centre capture behind them.
+  Every tracker already centres itself, so the two centres drifted apart and a
+  single recentre took a press on each side.
 
 ## [1.0.2] - 2026-08-17
 
-### Changed
+### Added
 
-- Smoothing is now two settings instead of one: `[Rotation] LocalSmoothing`
-  (default `0.0`) applies when the tracker runs on this PC, `[Rotation]
-  RemoteSmoothing` (default `0.15`) applies when it is a phone or other device
-  on the network. Which one is used is decided per connection from the packet's
-  source address and is re-evaluated when the source changes, so switching
-  between a local OpenTrack instance and a phone takes effect without a restart.
-- Removed `[Rotation] Smoothing` and `[Position] Smoothing`. Both new values
-  cover rotation and position alike, so there is no separate position smoothing
-  setting.
-- Removed the hidden 0.15 smoothing floor. It silently overrode whatever the
-  user set, so a tracker on the same machine now gets zero-latency tracking by
-  default.
+- `[Rotation] LocalSmoothing` (default `0.0`) for a tracker running on this PC,
+  and `[Rotation] RemoteSmoothing` (default `0.15`) for a phone or other device
+  on the network. Which one applies is decided per connection from the packet's
+  source address and re-evaluated when the source changes, so switching between
+  a local OpenTrack instance and a phone takes effect without a restart. Both
+  cover rotation and position alike.
+
+### Removed
+
+- `[Rotation] Smoothing` and `[Position] Smoothing`, replaced by the pair
+  above. There is no separate position smoothing setting any more.
+- The hidden 0.15 smoothing floor. It silently overrode whatever the user set,
+  so a tracker on the same machine now gets zero-latency tracking by default.
 
 ## [1.0.1] - 2026-08-15
 
 ### Added
 
-- make every hotkey remappable through [Hotkeys]
-- lock head yaw to the world's up axis
+- `RecenterKey`, `ToggleKey` and `CycleModeKey` in `[Hotkeys]`, with a chord
+  counterpart for each, so every action is remappable rather than just the yaw
+  mode toggle. A code the mod cannot bind, whether a modifier, out of range, or
+  a key name typed where a code belongs, leaves the action on its previous key
+  and logs why, and the boot line names every key it ended up bound to.
+
+### Changed
+
+- Head yaw always turns the view about the world's up axis, so a banked corner
+  never tilts the axis the head turns about, and looking down at the pedals
+  then turning pans across the floor.
+
+### Removed
+
+- The camera-local yaw mode, its `Page Down` / `Ctrl+Shift+H` hotkey, and the
+  `WorldSpaceYaw` and `YawModeKey` settings that selected it.
 
 ## [1.0.0] - 2026-08-12
 
