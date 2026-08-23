@@ -193,7 +193,13 @@ pixi run package
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License - see [LICENSE](LICENSE) for details. It covers this mod's own
+source and the binaries built from it. The bundled Ultimate ASI Loader and the
+statically linked MinHook keep their own licences, and the gameplay clip at the
+top of this page is Assetto Corsa EVO footage that belongs to KUNOS Simulazioni
+and the rights holders of the cars, circuits and sponsor marks in it, shown here
+to demonstrate the mod and licensed to nobody. All of it is set out in
+[THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 ## Credits
 

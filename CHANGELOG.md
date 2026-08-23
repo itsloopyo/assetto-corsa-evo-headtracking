@@ -1,18 +1,11 @@
 # Changelog
 
+All notable changes to this project are documented here.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
 ## [1.1.0] - 2026-08-20
-
-### Added
-
-- drop the recenter hotkey, the tracker owns the centre
-
-## [1.0.2] - 2026-08-17
-
-### Added
-
-- split smoothing into LocalSmoothing and RemoteSmoothing
-
-## [Unreleased]
 
 ### Added
 
@@ -21,6 +14,15 @@
   before a tracker is usually connected, so nothing in the log confirmed the
   pose ever got that far. It is logged ahead of the tracking-enabled check, so
   toggling tracking off does not hide it.
+
+### Changed
+
+- The tracker owns the centre. The recenter hotkeys (`Home` / `Ctrl+Shift+T`)
+  and their `RecenterKey` / `ChordRecenterKey` settings are gone, along with the
+  mod-side centre capture; the tracker pose is applied as absolute. Centre the
+  view in your tracker app instead.
+
+## [1.0.2] - 2026-08-17
 
 ### Changed
 
@@ -36,10 +38,6 @@
 - Removed the hidden 0.15 smoothing floor. It silently overrode whatever the
   user set, so a tracker on the same machine now gets zero-latency tracking by
   default.
-- The tracker owns the centre. The recenter hotkeys (`Home` / `Ctrl+Shift+T`)
-  and their `RecenterKey` / `ChordRecenterKey` settings are gone, along with the
-  mod-side centre capture; the tracker pose is applied as absolute. Centre the
-  view in your tracker app instead.
 
 ## [1.0.1] - 2026-08-15
 
@@ -47,11 +45,6 @@
 
 - make every hotkey remappable through [Hotkeys]
 - lock head yaw to the world's up axis
-
-All notable changes to this project are documented here.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.0.0] - 2026-08-12
 

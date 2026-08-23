@@ -32,3 +32,11 @@ NEXUS_MODS.md
 extern/minhook/
 __pycache__/
 *.pyc
+
+# Reverse-engineering output. A Ghidra project holds the imported program's
+# bytes, so a repo-local one would put the shipping game EXE into git history.
+*.gpr
+*.rep/
+*.gzf
+ghidra-projects/
+*.exe
