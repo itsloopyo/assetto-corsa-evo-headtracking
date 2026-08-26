@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.1] - 2026-08-26
+
+### Added
+
+- add build profile for the 2026-08-25 Steam patch
+
+### Fixed
+
+- complete the patch-watch rederive checklist
+
+### Other
+
+- ACE patch watch: record buildid 24928989 [skip ci]
+
 All notable changes to this project are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
