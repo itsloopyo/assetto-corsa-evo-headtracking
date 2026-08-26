@@ -107,10 +107,10 @@ jobs:
 
           1. Update the game via Steam, then quit it cleanly.
           2. Run \`pixi run check-fingerprint\`. A MATCH means a committed profile still covers this build (asset-only patch, the EXE was not relinked) - close this issue, nothing to do. No match means the EXE changed.
-          3. Most of this mod is not pinned to addresses: the camera vtables are resolved at runtime by RTTI class name (\`CockpitCamera\`, \`DashCamera\`, \`BonnetCamera\`, \`ExternalFixedCamera\`), so a plain recompile of the game usually needs nothing but a new fingerprint. Confirm the two pinned values still hold before shipping:
+          3. Most of this mod is not pinned to addresses: the camera vtables are resolved at runtime by RTTI class name (\`CockpitCamera\`, \`DashCamera\`, \`BonnetCamera\`, \`ExternalFixedCamera\`, \`ExternalDampedCamera\`), so a plain recompile of the game usually needs nothing but a new fingerprint. All five are load-bearing - \`ExternalDampedCamera\` is the chase cam and overrides extra vtable slots, so it is the one a sweep keyed on the shared vtable tail silently skips. Confirm the two pinned values still hold before shipping:
              - \`camera_compute_slot\` - the DrivableCamera vtable slot that computes the camera.
              - \`camera_out_transform\` - byte offset of the 4x4 matrix in the output struct.
-             \`pixi run ghidra-script\` against the new EXE if either moved.
+             \`pixi run verify-camera-profile\` checks both against the new EXE across all five classes and exits non-zero if either moved. It walks RTTI in the file and needs no Ghidra project; \`pixi run ghidra-script\` is the fallback when something actually did move and needs digging into.
           4. Add a NEW \`kSteamProfile_YYYYMMDD\` to \`src/builds/steam_offsets.cpp\` and register it at the TOP of \`kKnownProfiles\` in \`src/builds/build_registry.cpp\`. Append only: never edit or delete an existing profile, or every user who has not taken this patch loses head tracking with no way back.
           5. Smoke-test in a live driving session, not the main menu - the camera compute slot does not fire at the menu, so a clean build-check there proves only that the fingerprint matched.
           6. Bump version and ship via \`pixi run release\`. CHANGELOG entry is an addition ("adds support for Steam build YYYYMMDD; earlier builds keep working"), not a fix.
