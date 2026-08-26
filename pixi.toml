@@ -51,6 +51,11 @@ release = "powershell -ExecutionPolicy Bypass -File scripts/release.ps1"
 # "unknown build" log line.
 check-fingerprint = "powershell -ExecutionPolicy Bypass -File scripts/check-fingerprint.ps1"
 
+# The other half of a post-patch rederive: check-fingerprint says whether the
+# EXE has a profile, this says whether that profile's pinned slot and transform
+# offset still hold on it. Walks RTTI in the file - no Ghidra project needed.
+verify-camera-profile = "python scripts/verify-camera-profile.py"
+
 # Run a Ghidra headless script from scripts/ghidra/ against the game EXE.
 ghidra-script = "powershell -ExecutionPolicy Bypass -File scripts/ghidra-headless.ps1"
 
