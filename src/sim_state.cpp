@@ -35,8 +35,15 @@ static void TryMapPage() {
 
     void* view = MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, kHeaderBytes);
     if (view == nullptr) {
-        Log::Line("[sim] %s opened but could not be mapped (%lu); head tracking will not "
-                  "pause with the game.", kGraphicsPageName, GetLastError());
+        // Said once. The retry above runs every second for the rest of the
+        // session, and a page that cannot be mapped generally stays that way,
+        // so an unlatched line here grows the log by 3600 entries an hour.
+        static bool reported = false;
+        if (!reported) {
+            reported = true;
+            Log::Line("[sim] %s opened but could not be mapped (%lu); head tracking will not "
+                      "pause with the game.", kGraphicsPageName, GetLastError());
+        }
         CloseHandle(mapping);
         return;
     }

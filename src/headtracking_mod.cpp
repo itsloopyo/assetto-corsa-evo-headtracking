@@ -190,8 +190,8 @@ static void Bootstrap() {
     // wherever that happens to be - or fails to create it at all - exactly when
     // a user is being asked to send one. An unresolved directory still needs
     // somewhere to say so before the mod goes dormant.
-    Log::Open(haveExeDir ? exeDirWide + L"\\AssettoCorsaEvoHeadTracking.log"
-                         : std::wstring(L"AssettoCorsaEvoHeadTracking.log"));
+    Log::Open(haveExeDir ? exeDirWide + L"\\HeadTracking.log"
+                         : std::wstring(L"HeadTracking.log"));
     Log::Line("=== Assetto Corsa EVO Head Tracking ===");
 
     if (!haveExeDir) {

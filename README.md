@@ -58,7 +58,7 @@ The mod writes `HeadTracking.ini` next to the EXE on first launch.
 1. Connect the headset to the PC over Air Link or Virtual Desktop and start SteamVR.
 2. In OpenTrack, set Input to **SteamVR** and pick the headset as the tracked device.
 3. Set Output to UDP over network, `127.0.0.1` port `4242`.
-4. Wear the headset on your forehead or hold it steady facing the monitor, then centre it in OpenTrack.
+4. Centre in OpenTrack while looking at the monitor.
 
 ### Webcam Setup
 
@@ -145,7 +145,7 @@ Hotkeys are codes, not key names: `ToggleKey=Insert` is refused, `ToggleKey=0x2D
 
 **Mod not loading.**
 
-- Check `AssettoCorsaEvoHeadTracking.log` next to the game EXE. It records whether the loader attached, whether the build profile matched, and whether the camera hooks landed.
+- Check `HeadTracking.log` next to the game EXE. It records whether the loader attached, whether the build profile matched, and whether the camera hooks landed. Each launch starts a fresh log and moves the previous one to `HeadTracking.prev.log`, so it never grows without bound.
 - No log file at all means the ASI loader is not attaching. Confirm `dinput8.dll` is in the same folder as `AssettoCorsaEVO.exe`.
 - If the log says the build is newer than the mod knows about, Assetto Corsa EVO has patched and the mod has not been updated for that build yet. It stays dormant on purpose. Check the releases page for a newer release.
 
@@ -177,7 +177,7 @@ Download the new release and run `install.cmd` again. Your `HeadTracking.ini` is
 
 ## Uninstalling
 
-Run `uninstall.cmd`. This removes `AssettoCorsaEvoHeadTracking.asi`. The Ultimate ASI Loader is only removed if the installer put it there; use `uninstall.cmd /force` to remove it anyway. `HeadTracking.ini` and `AssettoCorsaEvoHeadTracking.log` are left in place, so delete those by hand if you want the folder completely clean.
+Run `uninstall.cmd`. This removes `AssettoCorsaEvoHeadTracking.asi` along with `HeadTracking.log` and `HeadTracking.prev.log`. The Ultimate ASI Loader is only removed if the installer put it there; use `uninstall.cmd /force` to remove it anyway. `HeadTracking.ini` is left in place, so delete it by hand if you want the folder completely clean.
 
 ## Building from Source
 
