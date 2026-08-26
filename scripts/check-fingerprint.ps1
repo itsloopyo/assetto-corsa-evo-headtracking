@@ -4,6 +4,15 @@
 # AssettoCorsaEVO.exe on disk and compare it against every build profile in
 # src/builds/. First thing to run when a user reports the dormant
 # "unknown build" log line, and the first step of a post-patch rederive.
+#
+# This answers "does this EXE have a profile". The second step answers whether
+# a new profile can reuse the pinned numbers:
+#
+#     pixi run verify-camera-profile
+#
+# which walks RTTI in the EXE and checks the compute slot and transform offset
+# still hold. Run it before pasting the template below - the numbers it prints
+# are the current profile's, not measurements of this EXE.
 
 [CmdletBinding()]
 param([string]$ExePath)
