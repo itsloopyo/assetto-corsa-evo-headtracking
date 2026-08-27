@@ -90,3 +90,4 @@ jobs:
           path: release/artifact-contents/
           retention-days: 14
           if-no-files-found: error
+          overwrite: true
