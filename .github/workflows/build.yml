@@ -58,8 +58,7 @@ jobs:
         shell: pwsh
         run: pixi run package
 
-      # Unzip the installer so upload-artifact doesn't nest a zip in its zip.
-      - name: Stage installer contents for artifact upload
+      - name: Verify installer was produced
         shell: pwsh
         run: |
           $zip = Get-ChildItem release/*-installer.zip -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -67,27 +66,3 @@ jobs:
             Write-Host "::error::No installer ZIP was produced by 'pixi run package'"
             exit 1
           }
-          $dest = "release/artifact-contents"
-          New-Item -ItemType Directory -Path $dest -Force | Out-Null
-          Expand-Archive -Path $zip.FullName -DestinationPath $dest -Force
-          Write-Host "Staged $($zip.Name)" -ForegroundColor Green
-
-      - name: Compute artifact name from ref
-        id: artifact
-        shell: pwsh
-        run: |
-          # GITHUB_HEAD_REF is the source branch on pull_request events; on push
-          # it is empty and GITHUB_REF_NAME is the branch. Using ref_name alone
-          # would name PR artifacts "<n>-merge".
-          $branch = if ($env:GITHUB_HEAD_REF) { $env:GITHUB_HEAD_REF } else { $env:GITHUB_REF_NAME }
-          $sanitized = $branch -replace '[^A-Za-z0-9._-]', '-'
-          echo "name=AssettoCorsaEvoHeadTracking-$sanitized" >> $env:GITHUB_OUTPUT
-
-      - name: Upload installer artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ steps.artifact.outputs.name }}
-          path: release/artifact-contents/
-          retention-days: 14
-          if-no-files-found: error
-          overwrite: true
