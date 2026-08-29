@@ -1,8 +1,8 @@
 # Assetto Corsa EVO Head Tracking
 
-An unofficial head tracking mod for Assetto Corsa EVO that moves the driving cameras with your head while the car and your inputs stay untouched, driven by any OpenTrack-compatible tracker and with no VR headset required.
+![Assetto Corsa EVO running with this mod](https://raw.githubusercontent.com/itsloopyo/assetto-corsa-evo-headtracking/main/assets/readme-clip.gif)
 
-![Mod GIF](https://raw.githubusercontent.com/itsloopyo/assetto-corsa-evo-headtracking/main/assets/readme-clip.gif)
+An unofficial head tracking mod for Assetto Corsa EVO that moves the camera with your head while your wheel or controller keeps steering, driven by a webcam, phone, or any OpenTrack compatible tracker, with no VR headset required.
 
 ## Features
 
