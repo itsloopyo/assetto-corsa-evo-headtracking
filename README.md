@@ -2,7 +2,7 @@
 
 ![Assetto Corsa EVO running with this mod](https://raw.githubusercontent.com/itsloopyo/assetto-corsa-evo-headtracking/main/assets/readme-clip.gif)
 
-An unofficial head tracking mod for Assetto Corsa EVO that moves the camera with your head while your wheel or controller keeps steering, driven by a webcam, phone, or any OpenTrack compatible tracker, with no VR headset required.
+An unofficial head tracking mod for Assetto Corsa EVO that moves the camera with your head while your wheel or controller keeps steering, driven by OpenTrack over UDP, with no VR headset required.
 
 ## Features
 
@@ -48,27 +48,64 @@ The mod writes `HeadTracking.ini` next to the EXE on first launch.
 
 ## Setting Up OpenTrack
 
-1. Input: whatever tracker you use.
-2. Output: **UDP over network**.
-3. Address `127.0.0.1`, port `4242`.
-4. Start tracking before or after launching the game; the mod picks it up whenever data starts arriving.
+The mod listens for OpenTrack pose data on UDP port `4242`, on every network
+interface. One datagram is six little-endian 64-bit floats in the order
+`x, y, z, yaw, pitch, roll`: position in centimetres, rotation in degrees, 48
+bytes in total. Anything that sends that to that port drives the view.
+OpenTrack's **UDP over network** output sends exactly this, and the steps below
+set it up.
 
-### VR Headset Setup
+1. Install [OpenTrack](https://github.com/opentrack/opentrack/releases).
+2. Pick a tracker under **Input**, using the notes below.
+3. Set **Output** to **UDP over network**, host `127.0.0.1`, port `4242`.
+4. Press **Start**. Tracking and the game can start in either order.
 
-1. Connect the headset to the PC over Air Link or Virtual Desktop and start SteamVR.
-2. In OpenTrack, set Input to **SteamVR** and pick the headset as the tracked device.
-3. Set Output to UDP over network, `127.0.0.1` port `4242`.
-4. Centre in OpenTrack while looking at the monitor.
+### Webcam
 
-### Webcam Setup
+OpenTrack ships a `neuralnet tracker` input that reads a plain webcam. Select it
+under **Input**, pick your camera in its settings, and use the output settings
+above. How well it tracks depends on your camera and your lighting, so try it
+before buying anything.
 
-1. In OpenTrack, set Input to **neuralnet tracker** and select your webcam.
-2. Set Output to UDP over network, `127.0.0.1` port `4242`.
-3. Sit in your normal driving position and centre in OpenTrack.
+### Phone
 
-### Phone App Setup
+A phone app can reach the mod directly, with no OpenTrack on the PC, if it sends
+the datagram described above. Point it at this PC's IP address (run `ipconfig`
+to find it) on port `4242`. Not every phone tracker speaks this protocol, so
+check yours for an OpenTrack or UDP output option first. [Headcam](https://headcam.app)
+sends it, and I wrote it so decent tracking is free for anyone who already owns
+a phone.
 
-Point the app at your PC's LAN IP on UDP port `4242`. Apps that smooth their own output can send straight to the mod with no OpenTrack in the chain. I made [Headcam](https://headcam.app) to ensure high quality tracking was available, free for anybody with a phone. If you want OpenTrack's curve mapping and filters, send the phone to OpenTrack's UDP input instead and let OpenTrack forward to `127.0.0.1:4242`.
+Sending direct works when the app filters its own signal on the device. The
+mod's smoothing is sized to take the edge off a clean signal rather than to
+rescue a noisy one, so a raw feed sent direct will jitter. If it does, point the
+app at OpenTrack's **UDP over network** *input* on some other port, say 5252,
+and let OpenTrack's filters and curves clean it up before its output forwards to
+`127.0.0.1:4242`.
+
+Anything arriving from outside `127.0.0.0/8` counts as a remote connection and
+is smoothed with `RemoteSmoothing` rather than `LocalSmoothing`. That includes a
+tracker on this very PC that sends to the machine's own LAN address, because the
+mod reads the source address and not the machine.
+
+### Headset or other hardware
+
+If your device has an OpenTrack input driver, select it under **Input** and use
+the same output settings. OpenTrack's own **Input** list is the authority on
+what it can read; the mod only ever sees what OpenTrack sends.
+
+### Centring
+
+Centring belongs to your tracker. The mod subtracts no centre of its own: it
+applies the pose it receives exactly as it arrives, so a stream of zeros holds
+the view where the game itself puts it. Press the centre control in your tracker
+(OpenTrack's **Center** bind, or the CENTER button in Headcam) and the tracker
+zeroes its own output, which leaves the view centred with the mod doing nothing.
+
+That is why there is no centre hotkey here and nothing to re-centre in game. Two
+centres in series would drift apart, because each side re-centres at moments the
+other cannot see, and you would end up pressing twice to centre once. If the
+view sits off to one side, centre it in the tracker.
 
 ## Controls
 
@@ -216,6 +253,6 @@ This mod is not affiliated with, endorsed by, or supported by KUNOS Simulazioni.
 
 ## Community & Support
 
-- [Discord](https://discord.com/invite/dxyZdyFNT9) - setup help, bug reports, and new-release announcements
-- [Lopari](https://lopari.app) - free Windows launcher with one-click install and launch of head-tracking mods
-- [Headcam](https://headcam.app) - free app that turns your phone into a head tracker
+- Discord: [Loop's Head Tracking Hangout](https://discord.com/invite/dxyZdyFNT9) - setup help, bug reports, and new-release announcements
+- [Lopari](https://lopari.app) - free Windows launcher with one-click install and launch for the released head-tracking mods
+- [Headcam](https://headcam.app) - free app that turns your iPhone or Android phone into the head tracker
