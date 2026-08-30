@@ -14,7 +14,7 @@ An unofficial head tracking mod for Assetto Corsa EVO that moves the camera with
 ## Requirements
 
 - [Assetto Corsa EVO](https://store.steampowered.com/app/3058630/) on Steam, a legitimately purchased copy. Note: The game's TrackIR tab in controller settings is not implemented and is unrelated to this mod.
-- A head tracker that speaks the [OpenTrack](https://github.com/opentrack/opentrack) UDP protocol: OpenTrack itself with any of its inputs (webcam, TrackIR, Tobii, SteamVR), or a free phone app such as [Headcam](https://headcam.app), which turns any phone into a tracker.
+- A tracker that sends OpenTrack UDP pose data to port `4242` (`[Network] UdpPort` in `HeadTracking.ini`): one 48-byte datagram of six little-endian 64-bit floats, `x, y, z, yaw, pitch, roll`. [OpenTrack](https://github.com/opentrack/opentrack) sends that from any of its inputs (webcam, TrackIR, Tobii, SteamVR). A phone app can send it straight to this PC if it has an OpenTrack or UDP output option; [Headcam](https://headcam.app) does, for free. See [Setting Up OpenTrack](#setting-up-opentrack).
 - Windows 10 or 11, 64-bit.
 
 ## Installation
@@ -167,6 +167,9 @@ SensitivityY=1.0
 SensitivityZ=1.0
 InvertX=0
 InvertY=0
+; InvertZ is for a tracker that sends depth backwards, not for a lean that
+; feels reversed. It is applied before the LimitZ / LimitZBack clamp, so
+; turning it on also swaps the travel budgets to 0.10m forward and 0.40m back.
 InvertZ=0
 ; Travel limits in metres. Z is asymmetric: more room to lean forward
 ; toward the windscreen than back into the seat.
