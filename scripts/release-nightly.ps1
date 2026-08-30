@@ -16,10 +16,12 @@ if (-not $versionMatch) {
 }
 $version = $versionMatch.Matches[0].Groups[1].Value
 
+# package-release.ps1 builds only the installer ZIP, no Nexus layout.
 Publish-NightlyBuild `
     -ModId 'assetto-corsa-evo' `
     -ModName 'AssettoCorsaEvoHeadTracking' `
     -Version $version `
     -ProjectRoot $ProjectRoot `
     -BuildCommand 'pixi run build' `
+    -NoNexusZip `
     -AllowDirty:$AllowDirty
