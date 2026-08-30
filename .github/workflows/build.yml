@@ -28,20 +28,20 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
           submodules: recursive
 
       # C++ toolchain for the pixi `package` task's cmake/msbuild build.
       - name: Setup Visual Studio environment
-        uses: microsoft/setup-msbuild@v3
+        uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3.0.0
 
       # run-install stays off because pixi is only a task runner here - the
       # build uses system CMake and Visual Studio, so [dependencies] is empty.
       # The install path ends in `pixi list`, which exits 1 on an environment
       # with no packages and fails the job before a single task has run.
       - name: Setup pixi
-        uses: prefix-dev/setup-pixi@v0.9.6
+        uses: prefix-dev/setup-pixi@5185adfbffb4bd703da3010310260805d89ebb11 # v0.9.6
         with:
           run-install: false
 
