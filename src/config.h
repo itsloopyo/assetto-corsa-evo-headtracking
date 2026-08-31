@@ -3,6 +3,9 @@
 #include <cstdint>
 #include <string>
 
+#include "cameraunlock/data/position_settings.h"
+#include "cameraunlock/math/smoothing_utils.h"
+
 namespace ace_ht {
 
 struct Config {
@@ -32,8 +35,8 @@ struct Config {
     // machine is already steady, so local_smoothing is 0.0 and nothing floors
     // it; a phone on WiFi jitters over the network, which is what
     // remote_smoothing is for.
-    float local_smoothing = 0.0f;
-    float remote_smoothing = 0.15f;
+    float local_smoothing = static_cast<float>(cameraunlock::math::kDefaultLocalSmoothing);
+    float remote_smoothing = static_cast<float>(cameraunlock::math::kDefaultRemoteSmoothing);
 
     bool position_enabled = true;
     float position_sensitivity_x = 1.0f;
@@ -42,10 +45,10 @@ struct Config {
     bool invert_position_x = false;
     bool invert_position_y = false;
     bool invert_position_z = false;
-    float limit_x = 0.30f;
-    float limit_y = 0.20f;
-    float limit_z = 0.40f;
-    float limit_z_back = 0.10f;
+    float limit_x = cameraunlock::PositionSettings{}.limit_x;
+    float limit_y = cameraunlock::PositionSettings{}.limit_y;
+    float limit_z = cameraunlock::PositionSettings{}.limit_z;
+    float limit_z_back = cameraunlock::PositionSettings{}.limit_z_back;
 };
 
 // Reads HeadTracking.ini from `exe_dir` over `out`. Keys that are absent, or

@@ -8,6 +8,7 @@
 #include "logging.h"
 
 #include "cameraunlock/config/ini_reader.h"
+#include "cameraunlock/math/smoothing_utils.h"
 #include "cameraunlock/protocol/port_utils.h"
 
 namespace ace_ht {
@@ -17,8 +18,8 @@ static constexpr char kIniName[] = "HeadTracking.ini";
 // The shipped default for each smoothing key, mirroring the Config member
 // initialisers. They are named here because a refused value has to land on the
 // default of the key it came from, and the two keys do not share one.
-static constexpr float kDefaultLocalSmoothing  = 0.0f;
-static constexpr float kDefaultRemoteSmoothing = 0.15f;
+static constexpr float kDefaultLocalSmoothing  = static_cast<float>(cameraunlock::math::kDefaultLocalSmoothing);
+static constexpr float kDefaultRemoteSmoothing = static_cast<float>(cameraunlock::math::kDefaultRemoteSmoothing);
 
 // The file a fresh install lands with. Values here must stay in step with the
 // Config struct's member initialisers - the config_defaults test locks that by
