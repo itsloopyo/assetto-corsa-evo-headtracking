@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.2] - 2026-09-01
+
+### Fixed
+
+- record the cameraunlock-core commit that is actually built
+- mirror the vertical limit and restore the MIT grant
+- re-sync THIRD-PARTY-NOTICES.md before cutting the tag
+- resolve the adversarial review findings
+- add the 2026-08-27 Steam build profile
+
+### Other
+
+- ACE patch watch: record buildid 24989348 [skip ci]
+
 ## [1.1.1] - 2026-08-26
 
 ### Added
