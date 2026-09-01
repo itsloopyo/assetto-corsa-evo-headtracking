@@ -8,6 +8,7 @@ using cameraunlock::memory::PeFingerprint;
 namespace ace_ht::builds {
 
 const BuildProfile* const kKnownProfiles[] = {
+    &kSteamProfile_20260827,
     &kSteamProfile_20260825,
     &kSteamProfile_20260722,
 };

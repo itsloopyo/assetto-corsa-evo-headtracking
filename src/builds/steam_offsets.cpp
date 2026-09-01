@@ -7,6 +7,21 @@
 
 namespace ace_ht::builds {
 
+// Assetto Corsa EVO, Steam app 3058630, EXE built 2026-08-27 15:26:28 UTC
+// (Steam build 24989348). SizeOfImage shrank by 0x13000 and every camera
+// compute body moved again, so the fingerprint stopped matching. Re-verified
+// against this EXE: all five concrete DrivableCamera vtables still hold the
+// compute method at slot 2 and still copy 16 floats to out+0x2C.
+extern const BuildProfile kSteamProfile_20260827 = {
+    "steam-win64-20260827",
+    { 0x6A905724, 0x06CDD000, 0x00000000 },
+    {
+        /* camera_compute_slot        */ 2,
+        /* camera_out_transform       */ 0x2C,
+        /* camera_out_transform_floats*/ 16,
+    },
+};
+
 // Assetto Corsa EVO, Steam app 3058630, EXE built 2026-08-25 12:36:36 UTC
 // (Steam build 24928989). The patch moved every camera compute body and grew
 // SizeOfImage by 0x9F0000, so the fingerprint stopped matching and the mod
