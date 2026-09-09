@@ -8,6 +8,7 @@ An unofficial head tracking mod for Assetto Corsa EVO that moves the camera with
 
 - **Decoupled view and driving** - your head moves the camera; the car, the physics and every input stay untouched
 - **6DOF positional tracking** - lean into an apex, peek round the A-pillar, check your mirrors
+- **Works with any OpenTrack compatible tracker** - free options available for PC, iOS and Android
 - **Horizon-locked look** - your head turns about the world's up axis, so a banked corner does not tilt the axis you turn about and looking down at the pedals then turning pans across the floor
 - **Works in every driving view** - cockpit, dash, bonnet, fixed external and the chase cam
 

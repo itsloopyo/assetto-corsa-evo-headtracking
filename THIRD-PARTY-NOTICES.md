@@ -12,6 +12,8 @@ Assetto Corsa EVO.
 | Component | Version | Licence | How it ships |
 |-----------|---------|---------|--------------|
 | Ultimate ASI Loader | v9.7.2 | MIT | Bundled verbatim in the installer ZIP |
+| injector | `f7fd18f` (inside Ultimate ASI Loader v9.7.2) | zlib | Compiled into the vendored dinput8.dll |
+| miniz | 3.0.0 (inside Ultimate ASI Loader v9.7.2) | MIT | Compiled into the vendored dinput8.dll |
 | MinHook | `9fbd08743270` | BSD-2-Clause | Compiled into `AssettoCorsaEvoHeadTracking.asi` |
 | cameraunlock-core | f441e29427b7422a584ba492dddd7788881804b0 | MIT | Compiled into `AssettoCorsaEvoHeadTracking.asi` |
 | OpenTrack | n/a | ISC | Not bundled; UDP protocol interoperability only |
@@ -51,6 +53,96 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+```
+
+That `dinput8.dll` is a static binary and is not one component. The
+`Ultimate-ASI-Loader-x64` target in `premake5.lua` at v9.7.2 compiles
+`external/injector/minhook/src/**.c`,
+`external/injector/utility/FunctionHookMinHook.cpp` and `external/miniz/miniz.c`
+alongside the loader's own sources, so redistributing it redistributes MinHook,
+injector and miniz as well, and each has its own section in this file.
+MemoryModule, d3d8to9 and the minidx9 DirectX headers belong to the 32-bit
+target only and are absent from this binary. The MinHook section covers the copy
+inside the loader as well as any linked into the mod itself; the licence text is
+the same.
+
+---
+
+## injector
+
+Compiled into the vendored `dinput8.dll`. The loader's `FunctionHookMinHook`
+wrapper, which the `Ultimate-ASI-Loader-x64` target compiles from
+`external/injector/utility/FunctionHookMinHook.cpp`, and the MinHook submodule
+that repository carries. Nothing in this repository calls or links it; it ships
+only inside that binary.
+
+- Upstream: https://github.com/ThirteenAG/injector
+- Version: commit `f7fd18f7fcb4691f470b7a047697e591a39a94fc`, the submodule
+  Ultimate ASI Loader v9.7.2 pins at `external/injector/`
+- Licence: zlib
+
+The binary is unaltered upstream, so the "altered source versions" condition
+below does not arise. It is reproduced whole regardless.
+
+```
+Copyright (C) 2012-2014 LINK/2012 <dma_2012@hotmail.com>
+
+This software is provided 'as-is', without any express or implied
+warranty. In no event will the authors be held liable for any damages
+arising from the use of this software.
+
+Permission is granted to anyone to use this software for any purpose,
+including commercial applications, and to alter it and redistribute it
+freely, subject to the following restrictions:
+
+   1. The origin of this software must not be misrepresented; you must not
+   claim that you wrote the original software. If you use this software
+   in a product, an acknowledgment in the product documentation would be
+   appreciated but is not required.
+
+   2. Altered source versions must be plainly marked as such, and must not be
+   misrepresented as being the original software.
+
+   3. This notice may not be removed or altered from any source
+   distribution.
+```
+
+---
+
+## miniz
+
+Compiled into the vendored `dinput8.dll`. Zip reading for the loader's
+`LoadVirtualFilesFromZip` path, which the `Ultimate-ASI-Loader-x64` target
+compiles from `external/miniz/miniz.c`. Nothing in this repository calls or
+links it; it ships only inside that binary.
+
+- Upstream: https://github.com/richgel999/miniz
+- Version: 3.0.0, as vendored at `external/miniz/` in Ultimate ASI Loader v9.7.2
+- Licence: MIT
+
+```
+Copyright 2013-2014 RAD Game Tools and Valve Software
+Copyright 2010-2014 Rich Geldreich and Tenacious Software LLC
+
+All Rights Reserved.
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 ```
 
 ---
