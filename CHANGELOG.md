@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.1.3] - 2026-09-09
+
+### Fixed
+
+- add the 2026-09-07 Steam build profile
+
+### Other
+
+- ACE patch watch: record buildid 25170311 [skip ci]
+
 ## [1.1.2] - 2026-09-01
 
 ### Fixed
