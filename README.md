@@ -20,6 +20,13 @@ An unofficial head tracking mod for Assetto Corsa EVO that moves the camera with
 
 ## Installation
 
+### Lopari
+
+Download [Lopari](https://lopari.app), choose **Assetto Corsa EVO**, and click
+**Play with head tracking**.
+
+### Standalone Installer
+
 1. Download the installer ZIP from the [Releases](https://github.com/itsloopyo/assetto-corsa-evo-headtracking/releases) page.
 2. Extract it anywhere.
 3. Double-click `install.cmd`. It finds the game and drops the loader and the mod next to `AssettoCorsaEVO.exe`.
