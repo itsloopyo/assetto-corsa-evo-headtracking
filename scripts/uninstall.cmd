@@ -18,6 +18,14 @@ set "STATE_FILE=.headtracking-state.json"
 set "FRAMEWORK_TYPE=ASILoader"
 set "LEGACY_DLLS=AssettoCorsaEvoHeadTracking.log AssettoCorsaEvoHeadTracking.prev.log"
 set "PLUGIN_SUBFOLDER="
+:: Files install.cmd seeded write-if-absent. MUST list the same names as
+:: install.cmd's MOD_SEED_FILES, or an uninstall leaves the mod's config behind.
+set "MOD_SEED_FILES="
+:: Config files the uninstall leaves in place so the player's settings survive a
+:: reinstall: paths relative to the game folder, quoted when one holds a space.
+:: Keep the line when it is blank, or the list another mod's uninstall.cmd set
+:: in the same console is used instead.
+set "PRESERVE_FILES="
 set "MANAGED_SUBFOLDER="
 set "ASSEMBLY_DLL="
 set "PATCH_MARKER="

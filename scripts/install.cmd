@@ -18,6 +18,10 @@ set "MOD_VERSION=1.1.3"
 set "STATE_FILE=.headtracking-state.json"
 set "FRAMEWORK_TYPE=ASILoader"
 set "ASI_LOADER_NAME=dinput8.dll"
+:: Files copied only when they are not already there, so an upgrade keeps
+:: whatever the user tuned. Listing an .ini in MOD_DLLS instead puts it through
+:: the unconditional copy and resets every key on every update.
+set "MOD_SEED_FILES="
 set "MOD_CONTROLS=End / Ctrl+Shift+Y toggle tracking, PgUp / Ctrl+Shift+G cycle tracking mode"
 :: --- END CONFIG BLOCK ---
 
