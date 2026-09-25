@@ -23,6 +23,10 @@ set "ASI_LOADER_NAME=dinput8.dll"
 :: the unconditional copy and resets every key on every update.
 set "MOD_SEED_FILES="
 set "MOD_CONTROLS=End / Ctrl+Shift+Y toggle tracking, PgUp / Ctrl+Shift+G cycle tracking mode"
+:: Not used by this mod. Set blank so a value another mod's wrapper left in
+:: the same console does not reach the body.
+set "ASI_SUBDIR="
+set "ASI_LOADER_VERSION="
 :: --- END CONFIG BLOCK ---
 
 :: Pin delayed expansion off before `%*` is expanded on the `call` below.
