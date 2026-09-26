@@ -28,11 +28,20 @@ clean-all = { cmd = """
     powershell -Command "foreach ($d in @('build','build-tests','release')) { if (Test-Path $d) { Remove-Item $d -Recurse -Force } }; Write-Host 'All build artifacts cleaned' -ForegroundColor Green"
 """ }
 
-# Unit tests: the camera transform composition, the frozen HeadTracking.ini
-# reader, and the config differential test, which holds that reader to
-# v1.1.3's. Builds in build-tests/ so the packaged build/ tree never contains a
-# test binary. Needs no game install.
+# Unit tests: the camera transform composition, the config tests, the frozen
+# HeadTracking.ini reader, the config differential test, which holds that reader
+# to v1.1.3's and the migration into CameraUnlock.ini to the reader, and core's
+# canonical config lint over every file that test migrated. Builds in
+# build-tests/ so the packaged build/ tree never contains a test binary. Needs no
+# game install.
 test = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/run-tests.ps1" }
+build-tests = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/run-tests.ps1 -NoRun" }
+
+# Rewrites HeadTracking.ini, the committed CameraUnlock.ini (the path core's
+# data/config-format.json records), from the config table after a change to a
+# row, a comment or a default, then writes the launcher manifest's config
+# descriptor per_game from it. ace_config_tests fails until it has run.
+render-config = { cmd = "build-tests/tests/Debug/ace_config_tests.exe --render-config HeadTracking.ini && node cameraunlock-core/scripts/encode-seed.mjs", depends-on = ["build-tests"] }
 
 # Bump vendored Ultimate ASI Loader copy. Manual; commit the result.
 update-deps = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/update-deps.ps1" }
@@ -47,6 +56,10 @@ package = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/package-rele
 install = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/deploy.ps1", depends-on = ["build"] }
 
 uninstall = "scripts/uninstall.cmd /y"
+
+# Checks the newest release/*-installer.zip against the launcher manifest rules
+# and the canonical config's delivery rules. Run after package.
+validate-manifest = "node cameraunlock-core/scripts/validate-manifest.mjs"
 
 release = "powershell -ExecutionPolicy Bypass -File scripts/release.ps1"
 

@@ -6,3 +6,5 @@
 *.zip binary
 tests/config_differential/data/** -text
 tests/config_differential/oracle/src/** -text
+# The committed CameraUnlock.ini, byte for byte the config table's fresh render.
+HeadTracking.ini -text

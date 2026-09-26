@@ -1,10 +1,14 @@
 #!/usr/bin/env pwsh
 #Requires -Version 5.1
 # Build and run the unit tests in their own build directory so the normal
-# build/ tree never carries a test binary.
+# build/ tree never carries a test binary. -NoRun builds them only, for
+# render-config, whose binary is one of them.
 
 [CmdletBinding()]
-param([ValidateSet('Release', 'Debug')][string]$Config = 'Debug')
+param(
+    [ValidateSet('Release', 'Debug')][string]$Config = 'Debug',
+    [switch]$NoRun
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -17,6 +21,7 @@ if ($LASTEXITCODE -ne 0) { throw "CMake configure failed ($LASTEXITCODE)" }
 
 cmake --build $buildDir --config $Config --target ace_tests
 if ($LASTEXITCODE -ne 0) { throw "Test build failed ($LASTEXITCODE)" }
+if ($NoRun) { return }
 
 ctest --test-dir $buildDir -C $Config --output-on-failure
 if ($LASTEXITCODE -ne 0) { throw "Tests failed ($LASTEXITCODE)" }

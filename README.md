@@ -15,7 +15,7 @@ An unofficial head tracking mod for Assetto Corsa EVO that moves the camera with
 ## Requirements
 
 - [Assetto Corsa EVO](https://store.steampowered.com/app/3058630/) on Steam, a legitimately purchased copy. Note: The game's TrackIR tab in controller settings is not implemented and is unrelated to this mod.
-- A tracker that sends OpenTrack UDP pose data to port `4242` (`[Network] UdpPort` in `HeadTracking.ini`): one 48-byte datagram of six little-endian 64-bit floats, `x, y, z, yaw, pitch, roll`. [OpenTrack](https://github.com/opentrack/opentrack) sends that from any of its inputs (webcam, TrackIR, Tobii, SteamVR). A phone app can send it straight to this PC if it has an OpenTrack or UDP output option; [Headcam](https://headcam.app) does, for free. See [Setting Up OpenTrack](#setting-up-opentrack).
+- A tracker that sends OpenTrack UDP pose data to port `4242` (`[Network] UdpPort` in `CameraUnlock.ini`): one 48-byte datagram of six little-endian 64-bit floats, `x, y, z, yaw, pitch, roll`. [OpenTrack](https://github.com/opentrack/opentrack) sends that from any of its inputs (webcam, TrackIR, Tobii, SteamVR). A phone app can send it straight to this PC if it has an OpenTrack or UDP output option; [Headcam](https://headcam.app) does, for free. See [Setting Up OpenTrack](#setting-up-opentrack).
 - Windows 10 or 11, 64-bit.
 
 ## Installation
@@ -31,7 +31,7 @@ Download [Lopari](https://lopari.app), choose **Assetto Corsa EVO**, and click
 2. Extract it anywhere.
 3. Double-click `install.cmd`. It finds the game and drops the loader and the mod next to `AssettoCorsaEVO.exe`.
 4. Configure OpenTrack (or your phone app) to output UDP to `127.0.0.1` port `4242`.
-5. Launch the game. The mod writes a default `HeadTracking.ini` and a log next to the EXE on first run.
+5. Launch the game. The mod creates `CameraUnlock.ini`, its settings file, and a log next to the EXE on first run.
 
 If the installer cannot find your game, point it at the install folder yourself. Either set the environment variable:
 
@@ -52,7 +52,7 @@ Copy two files into the Assetto Corsa EVO folder, the one containing `AssettoCor
 1. `vendor/ultimate-asi-loader/dinput8.dll` to `dinput8.dll`. This is the Ultimate ASI Loader; skip this step if you already run an ASI loader for this game.
 2. `plugins/AssettoCorsaEvoHeadTracking.asi` to `AssettoCorsaEvoHeadTracking.asi`.
 
-The mod writes `HeadTracking.ini` next to the EXE on first launch.
+The mod creates `CameraUnlock.ini` next to the EXE on first launch.
 
 ## Setting Up OpenTrack
 
@@ -131,63 +131,112 @@ Two equivalent binding sets, use whichever your keyboard has:
 3. Rotational tracking disabled, positional tracking enabled
 4. Back to normal
 
-Every one of these keys is remappable through `[Hotkeys]` in `HeadTracking.ini`, both the nav-cluster key and the chord letter, which is worth doing if your button box or a wheel plugin already sits on one of them.
+The mode you pick is saved to `CameraUnlock.ini`, and the game starts in it next time. `End` / `Ctrl+Shift+Y` changes the current session only; whether tracking is on when the game starts is `EnableOnStartup`.
+
+Each action's keys are one list in `[Hotkeys]` in `CameraUnlock.ini`, `ToggleKey` and `CycleTrackingModeKey`, the chord included, so any of them can be changed or removed. That is worth doing if your button box or a wheel plugin already sits on one of them.
 
 ## Configuration
 
-`HeadTracking.ini` sits next to `AssettoCorsaEVO.exe`. Edit it and restart the game to apply. The defaults, annotated with the accepted ranges:
+<!-- cameraunlock:config -->
+The mod reads its settings from `CameraUnlock.ini` in the game folder, and creates the file when it starts and finds none. Edit it with any text editor.
+
+A setting set to `default` takes its value from `Defaults.ini`, which every head tracking mod that keeps its settings in `CameraUnlock.ini` reads. Head tracking mods that keep their settings in another file do not read it, and neither do earlier versions of this mod. Writing a value in place of `default` changes that setting for this game only. When the mod saves a setting that a hotkey changed in game, it writes the new value in place of `default`, so that setting no longer follows `Defaults.ini` in this game until you set it to `default` again.
+
+`Defaults.ini` is `%AppData%\CameraUnlock\Defaults.ini` on Windows; `$XDG_CONFIG_HOME/CameraUnlock/Defaults.ini` on Linux, or `~/.config/CameraUnlock/Defaults.ini` where `XDG_CONFIG_HOME` is not set, under Wine and Proton too; and `~/Library/Application Support/CameraUnlock/Defaults.ini` on macOS. The mod's log, where it writes one, names the file it read.
+
+When the mod starts and finds no `Defaults.ini`, it creates one holding the built-in values, unless Windows runs the game as a packaged app. The mod never changes `Defaults.ini` after that. Edit it with any text editor.
+
+Earlier versions of the mod kept these settings in `HeadTracking.ini`, in the same folder. The first time this version starts and finds no `CameraUnlock.ini`, it reads your settings from `HeadTracking.ini` and writes them into `CameraUnlock.ini`. It never changes `HeadTracking.ini`, and does not read it again while `CameraUnlock.ini` exists.
+
+A setting that the defaults below set to `default` is written as `default` when the value imported for it equals its default at that start, which is the value `Defaults.ini` gives it, or the built-in value where `Defaults.ini` gives none. It then follows `Defaults.ini`. Every other setting is written with the value imported for it. `RotationEnabled` and `PositionEnabled` are one setting here, the tracking mode, so both are written as `default` or neither is.
+
+Comments, and keys the mod never read, are not carried over. Nor are these, where your old file had them:
+
+- Reticle settings, and a key that toggled the reticle.
+- A sensitivity, scale, deadzone, response curve or axis inversion you changed from its default. Set these in your tracker instead.
+- The setting for a feature that earlier versions shipped switched off while it was untested. It now follows the mod's default.
+
+An older version of the mod reads `HeadTracking.ini` and never reads `CameraUnlock.ini`, so a setting you change after updating is not in `HeadTracking.ini`.
+
+Deleting only `CameraUnlock.ini` makes the next start read `HeadTracking.ini` again. To go back to the defaults, replace everything in `CameraUnlock.ini` with the defaults below. Every setting they set to `default` then follows `Defaults.ini`.
+
+The built-in value of each setting set to `default` below:
+
+- `UdpPort=4242`
+- `EnableOnStartup=true`
+- `RotationEnabled=true`
+- `LocalSmoothing=0.0`
+- `RemoteSmoothing=0.15`
+- `PositionEnabled=true`
+- `PositionLimitX=0.3`
+- `PositionLimitY=0.2`
+- `PositionLimitYDown=0.2`
+- `PositionLimitZ=0.4`
+- `PositionLimitZBack=0.1`
+- `ToggleKey=End, Ctrl+Shift+Y`
+- `CycleTrackingModeKey=PageUp, Ctrl+Shift+G`
+
+With every setting at its default, the file reads:
 
 ```ini
+; Assetto Corsa EVO head tracking settings.
+; Comments start with ; and go on their own line. Text after a value is part of the value.
+; Hotkeys are key names such as End, PageUp or Ctrl+Shift+Y. Separate several with commas; leave empty for none.
+; A setting set to default takes its value from Defaults.ini, which every head tracking mod
+; that keeps its settings in CameraUnlock.ini reads: %AppData%\CameraUnlock\Defaults.ini on
+; Windows, $XDG_CONFIG_HOME/CameraUnlock/Defaults.ini (normally ~/.config/CameraUnlock) on
+; Linux, under Wine and Proton too, and ~/Library/Application Support/CameraUnlock/Defaults.ini
+; on macOS. The log names the file it read. Write a value instead of default to change that
+; setting for this game only.
+
+[CameraUnlock]
+; Written by the mod. Leave this section in place.
+ConfigFormat=1
+
 [Network]
-UdpPort=4242
+; UDP port the mod receives tracker data on (OpenTrack protocol).
+UdpPort=default
 
 [General]
-EnableOnStartup=1
+; true: head tracking is on when the game starts. ToggleKey turns it on and off.
+EnableOnStartup=default
+; true: turning your head turns the view.
+; Tracking mode at startup, with PositionEnabled. The mode hotkey changes both.
+RotationEnabled=default
 
-[Hotkeys]
-; Windows virtual key codes, in hex. Each action has a nav-cluster key and a
-; Ctrl+Shift+<key> chord, and both fire it - remap either or both.
-ToggleKey=0x23
-CycleModeKey=0x21
-ChordToggleKey=0x59
-ChordCycleModeKey=0x47
-
-[Rotation]
-; 0.1 - 3.0. Higher turns the view further for the same head movement.
-YawSensitivity=1.0
-PitchSensitivity=1.0
-RollSensitivity=1.0
-InvertYaw=0
-InvertPitch=0
-InvertRoll=0
-; Smoothing covers rotation and position alike, and the value used is picked
-; per connection from where the tracker sends from. 0.0 none .. 1.0 heavy.
-; LocalSmoothing: tracker running on this machine (loopback). Nothing floors it,
-; so 0.0 really is zero-latency tracking.
-; RemoteSmoothing: tracker is a device on the network, e.g. a phone over WiFi.
-LocalSmoothing=0.0
-RemoteSmoothing=0.15
+[Smoothing]
+; Smoothing when the tracker runs on this PC. 0 is the least, 1 the most.
+LocalSmoothing=default
+; Smoothing when the tracker is another device on the network, such as a phone.
+; 0 is the least, 1 the most.
+RemoteSmoothing=default
 
 [Position]
-Enabled=1
-SensitivityX=1.0
-SensitivityY=1.0
-SensitivityZ=1.0
-InvertX=0
-InvertY=0
-; InvertZ is for a tracker that sends depth backwards, not for a lean that
-; feels reversed. It is applied before the LimitZ / LimitZBack clamp, so
-; turning it on also swaps the travel budgets to 0.10m forward and 0.40m back.
-InvertZ=0
-; Travel limits in metres. Z is asymmetric: more room to lean forward
-; toward the windscreen than back into the seat.
-LimitX=0.30
-LimitY=0.20
-LimitZ=0.40
-LimitZBack=0.10
-```
+; true: moving your head moves the view.
+; Tracking mode at startup, with RotationEnabled. The mode hotkey changes both.
+PositionEnabled=default
+; How far, in metres, leaning left or right can move the view.
+PositionLimitX=default
+; How far, in metres, raising your head can move the view.
+PositionLimitY=default
+; How far, in metres, lowering your head can move the view.
+PositionLimitYDown=default
+; How far, in metres, leaning forward can move the view.
+PositionLimitZ=default
+; How far, in metres, leaning back can move the view.
+PositionLimitZBack=default
 
-Hotkeys are codes, not key names: `ToggleKey=Insert` is refused, `ToggleKey=0x2D` is the same key. They are read as hex, so a bare `24` is `0x24`. Common ones are `Home` `0x24`, `End` `0x23`, `Insert` `0x2D`, `Delete` `0x2E`, `Page Up` `0x21`, `Page Down` `0x22`, `F1`-`F12` `0x70`-`0x7B`, `A`-`Z` `0x41`-`0x5A`, numpad `0`-`9` `0x60`-`0x69`; the [full list](https://learn.microsoft.com/windows/win32/inputdev/virtual-key-codes) is Microsoft's. `Ctrl`, `Shift` and `Alt` cannot be bound - they are what the chord itself is made of. A code the mod refuses leaves that action on its previous key and says so in the log; the log also names every key it ended up bound to, so check there first if a remap did not take.
+[Hotkeys]
+; Turns head tracking on and off.
+ToggleKey=default
+; Changes the tracking mode: rotation and position, rotation only, position only.
+CycleTrackingModeKey=default
+```
+<!-- /cameraunlock:config -->
+
+Changes take effect the next time the game starts.
+
+Hotkeys are written as key names, such as `End`, `PageUp`, `F9` or `Ctrl+Shift+Y`, separated by commas. A key with no name can be written as its Windows virtual key code, `0x` and two hex digits, such as `0xBA`. A value the mod cannot read leaves that setting at its default and is named in `HeadTracking.log`.
 
 ## Troubleshooting
 
@@ -199,21 +248,21 @@ Hotkeys are codes, not key names: `ToggleKey=Insert` is refused, `ToggleKey=0x2D
 
 **No tracking response.**
 
-- Confirm your tracker is running and its output is UDP to `127.0.0.1` port `4242`, matching `UdpPort` in `HeadTracking.ini`.
+- Confirm your tracker is running and its output is UDP to `127.0.0.1` port `4242`, matching `UdpPort` in `CameraUnlock.ini`.
 - Press `End` to make sure tracking is not toggled off.
 - A phone app must target your PC's LAN IP, not `127.0.0.1`, and your firewall must allow inbound UDP on `4242`.
 - Another game still running with a head tracking mod holds the port, and the log says `Failed to bind UDP port 4242`. The mod keeps retrying for as long as it is loaded, so close the other game and tracking starts within a second, logging `Bound UDP port 4242 after 12s of waiting - tracking is live`. There is no need to restart Assetto Corsa EVO.
 
 **Jittery or unstable tracking.**
 
-- Raise the smoothing value your tracker actually uses: `LocalSmoothing` if it runs on this PC, `RemoteSmoothing` if it is a phone or other device on the network. Start at `0.3`. The log line printed when a tracker connects says which of the two is in effect.
+- Raise the smoothing value your tracker actually uses, in `[Smoothing]` in `CameraUnlock.ini`: `LocalSmoothing` if it runs on this PC, `RemoteSmoothing` if it is a phone or other device on the network. Start at `0.3`. The log line printed when a tracker connects says which of the two is in effect.
 - Webcam trackers need even lighting and a clear view of your face; a dark room or a strong backlight makes the pose wander.
 - On Wi-Fi, a phone app on the 5 GHz band is far steadier than 2.4 GHz.
 
 **Wrong rotation axis or the view drifts off centre.**
 
 - Centre in your tracker app while sitting in your normal driving position. The mod applies the pose it is sent as absolute and keeps no centre of its own.
-- If an axis moves the wrong way, set the matching `InvertYaw`, `InvertPitch` or `InvertRoll` to `1`.
+- The mod applies the pose as your tracker sends it. If an axis moves the wrong way, invert that axis in your tracker's settings.
 
 **The view keeps following my head in the pause menu.**
 
@@ -221,11 +270,11 @@ Hotkeys are codes, not key names: `ToggleKey=Insert` is refused, `ToggleKey=0x2D
 
 ## Updating
 
-Download the new release and run `install.cmd` again. Your `HeadTracking.ini` is preserved.
+Download the new release and run `install.cmd` again. Your `CameraUnlock.ini` is kept. Updating from v1.1.3 or earlier, the first start reads your settings from `HeadTracking.ini` into a new `CameraUnlock.ini`; see [Configuration](#configuration).
 
 ## Uninstalling
 
-Run `uninstall.cmd`. This removes `AssettoCorsaEvoHeadTracking.asi` along with `HeadTracking.log` and `HeadTracking.prev.log`. The Ultimate ASI Loader is only removed if the installer put it there; use `uninstall.cmd /force` to remove it anyway. `HeadTracking.ini` is left in place, so delete it by hand if you want the folder completely clean.
+Run `uninstall.cmd`. This removes `AssettoCorsaEvoHeadTracking.asi` along with `HeadTracking.log` and `HeadTracking.prev.log`. The Ultimate ASI Loader is only removed if the installer put it there; use `uninstall.cmd /force` to remove it anyway. `CameraUnlock.ini` and `HeadTracking.ini` are left in place, so your settings are still there if you install again.
 
 ## Building from Source
 

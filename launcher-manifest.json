@@ -8,6 +8,14 @@
   "strategy": "AsiLoader",
   "delivery_mode": "manifest",
 
+  "config": {
+    "path": "CameraUnlock.ini",
+    "anchor": "game_root",
+    "legacy_source": "HeadTracking.ini",
+    "canonical_since": "1.2.0",
+    "per_game": {}
+  },
+
   "files": [
     { "source": "vendor/ultimate-asi-loader/dinput8.dll", "target": "dinput8.dll", "backup": true },
     { "source": "plugins/AssettoCorsaEvoHeadTracking.asi", "target": "AssettoCorsaEvoHeadTracking.asi" }
