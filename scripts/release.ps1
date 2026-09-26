@@ -47,6 +47,41 @@ function Add-MaintenanceChangelogEntry {
     Set-Content $Path $changelog -NoNewline
 }
 
+# New-ChangelogFromCommits lists commit subjects and never reads [Unreleased], so
+# the notes written there by hand would stay behind under the new entry, reading
+# as older than it. They open the new entry instead, merged heading by heading.
+function Move-UnreleasedIntoEntry {
+    param([string]$Path, [string]$NewVersion)
+    $text = [System.IO.File]::ReadAllText($Path)
+    $unreleased = [regex]::Match($text, '(?ms)^## \[Unreleased\][^\n]*\n(.*?)(?=^## \[|\z)')
+    if (-not $unreleased.Success) { return }
+    $text = $text.Remove($unreleased.Index, $unreleased.Length)
+    $entry = [regex]::Match($text, "(?ms)^(## \[$([regex]::Escape($NewVersion))\][^\n]*\n)(.*?)(?=^## \[|\z)")
+    if (-not $entry.Success) { throw "CHANGELOG.md has no [$NewVersion] entry to move [Unreleased] into." }
+    $order = New-Object System.Collections.Generic.List[string]
+    $sections = @{}
+    foreach ($body in @($unreleased.Groups[1].Value, $entry.Groups[2].Value)) {
+        if (($body -split '(?m)^### ', 2)[0].Trim()) {
+            throw "CHANGELOG.md has text outside a ### heading in [Unreleased] or [$NewVersion]; put it under one."
+        }
+        foreach ($block in [regex]::Matches($body, '(?ms)^### ([^\n]+)\n(.*?)(?=^### |\z)')) {
+            $heading = $block.Groups[1].Value.Trim()
+            if (-not $sections.ContainsKey($heading)) {
+                $order.Add($heading)
+                $sections[$heading] = @()
+            }
+            $content = $block.Groups[2].Value.Trim()
+            if ($content) { $sections[$heading] += $content }
+        }
+    }
+    $merged = $entry.Groups[1].Value + "`n"
+    foreach ($heading in $order) {
+        $merged += "### $heading`n`n" + ($sections[$heading] -join "`n") + "`n`n"
+    }
+    $text = $text.Remove($entry.Index, $entry.Length).Insert($entry.Index, $merged)
+    [System.IO.File]::WriteAllText($Path, $text.TrimEnd() + "`n", (New-Object System.Text.UTF8Encoding($false)))
+}
+
 if ([string]::IsNullOrWhiteSpace($Version)) {
     Write-Error "Usage: pixi run release <major|minor|patch|nightly|X.Y.Z>"
     exit 1
@@ -102,9 +137,14 @@ if (-not $hasExistingTags) {
             Write-Host "No user-facing changes to release. Re-run with -Force for a maintenance release." -ForegroundColor Yellow
             exit 1
         }
+        if ([System.IO.File]::ReadAllText($changelogPath) -match '(?m)^## \[Unreleased\]') {
+            Write-Host 'Error: CHANGELOG.md has an [Unreleased] section, so this is not a maintenance release.' -ForegroundColor Red
+            exit 1
+        }
         Write-Host "No user-facing commits since last tag - writing maintenance entry (-Force)." -ForegroundColor Yellow
         Add-MaintenanceChangelogEntry -Path $changelogPath -NewVersion $newVersion
     }
+    Move-UnreleasedIntoEntry -Path $changelogPath -NewVersion $newVersion
 }
 
 # 4. Bump the canonical version, then mirror it into every derived copy.
