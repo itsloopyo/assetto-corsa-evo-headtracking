@@ -2,7 +2,7 @@
 // Pure functions only - no game, no sockets, no Windows API - so this runs
 // anywhere `pixi run test` runs.
 
-#include "config_sanitize.h"
+#include "legacy_config/config_sanitize.h"
 
 #include "test_support.h"
 
@@ -12,7 +12,7 @@
 #include <cstdio>
 #include <limits>
 
-using namespace ace_ht;
+using namespace ace_ht::legacy;
 using ace_test::Check;
 
 namespace {

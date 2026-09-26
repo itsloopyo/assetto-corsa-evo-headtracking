@@ -28,15 +28,18 @@ clean-all = { cmd = """
     powershell -Command "foreach ($d in @('build','build-tests','release')) { if (Test-Path $d) { Remove-Item $d -Recurse -Force } }; Write-Host 'All build artifacts cleaned' -ForegroundColor Green"
 """ }
 
-# Unit tests: the HeadTracking.ini boundary, the shipped defaults, and the
-# camera transform composition. Builds in build-tests/ so the packaged build/
-# tree never contains a test binary.
+# Unit tests: the camera transform composition, the frozen HeadTracking.ini
+# reader, and the config differential test, which holds that reader to
+# v1.1.3's. Builds in build-tests/ so the packaged build/ tree never contains a
+# test binary. Needs no game install.
 test = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/run-tests.ps1" }
 
 # Bump vendored Ultimate ASI Loader copy. Manual; commit the result.
 update-deps = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/update-deps.ps1" }
 
-package = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1", depends-on = ["build"] }
+# Depends on test, so no ZIP is built from a tree whose tests or config
+# differential test fail.
+package = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1", depends-on = ["build", "test"] }
 
 # Dev loop: build, then copy the .asi + vendored loader straight into the
 # detected game folder. install.cmd is the end-user path and is not run here -
@@ -61,4 +64,7 @@ verify-camera-profile = "python scripts/verify-camera-profile.py"
 ghidra-script = "powershell -ExecutionPolicy Bypass -File scripts/ghidra-headless.ps1"
 
 [dependencies]
-# No pixi-managed deps - relies on system CMake + Visual Studio.
+# The build uses the system CMake and Visual Studio. Packaging runs core's config
+# descriptor check (Copy-SharedBundle) with node. Pinned to the release core's
+# own lock resolves.
+nodejs = "==26.5.0"

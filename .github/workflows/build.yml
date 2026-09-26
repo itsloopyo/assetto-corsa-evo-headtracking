@@ -36,24 +36,17 @@ jobs:
       - name: Setup Visual Studio environment
         uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3.0.0
 
-      # run-install stays off because pixi is only a task runner here - the
-      # build uses system CMake and Visual Studio, so [dependencies] is empty.
-      # The install path ends in `pixi list`, which exits 1 on an environment
-      # with no packages and fails the job before a single task has run.
+      # run-install stays off: the build uses system CMake and Visual Studio,
+      # and `pixi run` installs the one pixi dependency, node, itself on the
+      # first task it runs.
       - name: Setup pixi
         uses: prefix-dev/setup-pixi@5185adfbffb4bd703da3010310260805d89ebb11 # v0.9.6
         with:
           run-install: false
 
-      # Config-boundary and camera-transform tests, before the build that would
-      # otherwise ship a binary that fails them.
-      - name: Run unit tests
-        shell: pwsh
-        run: pixi run test
-
       # Build + package through the SAME command a developer runs locally. All
       # build logic lives in the pixi task chain (cmake configure -> build ->
-      # package); the workflow owns none, so local and CI can't drift.
+      # test -> package); the workflow owns none, so local and CI can't drift.
       - name: Build and package
         shell: pwsh
         run: pixi run package

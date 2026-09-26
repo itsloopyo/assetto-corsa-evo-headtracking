@@ -1,0 +1,89 @@
+#pragma once
+
+#include <cmath>
+
+// Frozen with the reader beside it (see legacy_config.h): the value guards
+// v1.1.3 applied to HeadTracking.ini, moved from src/config_sanitize.h into
+// namespace ace_ht::legacy and otherwise unchanged.
+namespace ace_ht::legacy {
+
+// Boundary validation for values read from the user-editable HeadTracking.ini.
+// IniReader parses floats with strtod, which accepts "nan" and "inf" and
+// overflows a literal like 1e400 to +inf, so a typo or a corrupted file feeds
+// those straight into the smoothing math, the quaternion, and from there into
+// the camera transform this mod writes back into the engine. Every float that
+// crosses that boundary goes through one of these first.
+
+inline float SanitizeFinite(float v, float fallback) {
+    return std::isfinite(v) ? v : fallback;
+}
+
+inline float ClampRange(float v, float lo, float hi) {
+    if (v < lo) return lo;
+    if (v > hi) return hi;
+    return v;
+}
+
+// LocalSmoothing and RemoteSmoothing must each be finite and within [0,1].
+// [0,1] is the whole meaningful domain: CalculateSmoothingFactor maps it onto a
+// settle speed between 50 (frame interpolation only) and 0.1 (roughly a five
+// second settle), and the core clamps that speed to [0.1, 50] itself, so a
+// value outside the range no longer drives the per-frame factor negative. It
+// just saturates at one end while the INI goes on advertising a setting the mod
+// is not honouring, so the clamp stays: it keeps the stored value and the
+// behaviour in agreement, and gives the caller something to log.
+//
+// This is validation, never a floor. Any value inside [0,1] reaches the
+// processor untouched, 0.0 included. `fallback` is the shipped default of the
+// key being read, 0.0 for LocalSmoothing and 0.15 for RemoteSmoothing, so a
+// malformed RemoteSmoothing lands on the remote default instead of silently
+// handing a phone-over-WiFi user the local "no smoothing at all".
+inline float SanitizeSmoothing(float v, float fallback) {
+    return ClampRange(SanitizeFinite(v, fallback), 0.0f, 1.0f);
+}
+
+// Sensitivity: sign and magnitude are legitimate tuning choices (boost, or
+// invert without touching the Invert flags), so the only values refused are the
+// two that reach the camera matrix as garbage - NaN/Inf, and a magnitude large
+// enough that TrackingProcessor's `angle * sensitivity` overflows to +/-Inf.
+// sin/cos of an infinite angle is NaN, so that lands a NaN camera transform in
+// the engine every frame: a black screen with nothing in the log to explain it.
+// The angle being multiplied is a quaternion decomposition and so never exceeds
+// 180 degrees, which this bound keeps finite with room to spare while sitting
+// orders of magnitude beyond any usable setting (documented range is 0.1-3.0).
+constexpr float kMaxSensitivity = 100.0f;
+
+inline float SanitizeSensitivity(float v) {
+    return ClampRange(SanitizeFinite(v, 1.0f), -kMaxSensitivity, kMaxSensitivity);
+}
+
+// A virtual key code the hotkey poller can actually watch. GetAsyncKeyState
+// only defines 0x01..0xFE, so a typo like ToggleKey=0x230 registers a hotkey
+// that can never fire and the key silently does nothing.
+//
+// The modifiers are refused for a second reason: Ctrl and Shift are what the
+// chord guard tests, so an action bound to one either never fires (a nav
+// binding is suppressed while the chord is held) or fires on every press of
+// any chord. Alt sits with them because it is the same class of key and a
+// binding on it reads as a modifier the user expects to combine, not press.
+inline bool IsBindableVirtualKey(int v) {
+    if (v < 0x01 || v > 0xFE) return false;
+    if (v >= 0x10 && v <= 0x12) return false;  // Shift, Control, Alt
+    if (v >= 0xA0 && v <= 0xA5) return false;  // and their left/right halves
+    return true;
+}
+
+// Travel limits in metres. PositionProcessor clamps each axis to
+// [-limit, +limit], so a negative limit inverts the clamp bounds and a
+// non-finite one propagates NaN into the camera translation. The upper bound
+// catches a mistyped limit (10000 for 0.10) that would translate the camera out
+// of the world, and at the top of the float range would overflow the transform's
+// translation row to Inf once the lean is carried through the camera basis.
+// A cockpit head has centimetres of travel, so metres of headroom is generous.
+constexpr float kMaxPositionLimit = 10.0f;
+
+inline float SanitizePositionLimit(float v, float fallback) {
+    return ClampRange(SanitizeFinite(v, fallback), 0.0f, kMaxPositionLimit);
+}
+
+}  // namespace ace_ht::legacy

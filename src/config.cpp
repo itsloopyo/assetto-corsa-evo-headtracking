@@ -2,24 +2,12 @@
 
 #include <windows.h>
 
-#include <cstdlib>
-
-#include "config_sanitize.h"
+#include "legacy_config/legacy_config.h"
 #include "logging.h"
-
-#include "cameraunlock/config/ini_reader.h"
-#include "cameraunlock/math/smoothing_utils.h"
-#include "cameraunlock/protocol/port_utils.h"
 
 namespace ace_ht {
 
 static constexpr char kIniName[] = "HeadTracking.ini";
-
-// The shipped default for each smoothing key, mirroring the Config member
-// initialisers. They are named here because a refused value has to land on the
-// default of the key it came from, and the two keys do not share one.
-static constexpr float kDefaultLocalSmoothing  = static_cast<float>(cameraunlock::math::kDefaultLocalSmoothing);
-static constexpr float kDefaultRemoteSmoothing = static_cast<float>(cameraunlock::math::kDefaultRemoteSmoothing);
 
 // The file a fresh install lands with. Values here must stay in step with the
 // Config struct's member initialisers - the config_defaults test locks that by
@@ -73,156 +61,37 @@ static std::string IniPath(const std::string& exe_dir) {
     return exe_dir + "\\" + kIniName;
 }
 
-// A value the mod refused is exactly what a "my INI setting does nothing" bug
-// report needs to show, so every substitution is logged rather than swallowed.
-// A NaN raw value compares unequal to everything, including itself, so it
-// takes this branch too.
-static float UseSanitized(const char* name, float raw, float clean) {
-    if (raw != clean) {
-        Log::Line("[config] %s=%.4f is out of range or not finite; using %.4f",
-                  name, raw, clean);
-    }
-    return clean;
-}
+Config LoadConfig(const std::string& exe_dir) {
+    legacy::Config read;
+    legacy::LoadConfig(IniPath(exe_dir), read);
 
-static float ReadSensitivity(const cameraunlock::IniReader& ini, const char* section,
-                             const char* key, float fallback) {
-    const float raw = ini.ReadFloat(section, key, fallback);
-    return UseSanitized(key, raw, SanitizeSensitivity(raw));
-}
-
-// `shipped_default` is the default of the key being read, not one shared by
-// both smoothing keys: LocalSmoothing falls back to 0.0, RemoteSmoothing to
-// 0.15. A single fallback would answer a malformed RemoteSmoothing with the
-// LOCAL default, so a phone on WiFi would get no smoothing at all on raw
-// network jitter, which is the one case RemoteSmoothing exists to cover.
-static float ReadSmoothing(const cameraunlock::IniReader& ini, const char* section,
-                           const char* key, float current, float shipped_default) {
-    const float raw = ini.ReadFloat(section, key, current);
-    return UseSanitized(key, raw, SanitizeSmoothing(raw, shipped_default));
-}
-
-// Warned once per process rather than once per load: config is reloadable, and
-// repeating this on every reload buries it.
-//
-// The old value is deliberately NOT migrated into the new keys. The single
-// Smoothing value carried a hidden 0.15 floor, so the number in an existing
-// config does not mean what it used to: copying it across would hand a local
-// user smoothing they never chose under the new semantics, and copying it into
-// only one of the two keys would be a guess about which connection they were on.
-static void WarnRetiredSmoothingKey(const cameraunlock::IniReader& ini,
-                                    const char* section, const char* key) {
-    static bool warned = false;
-    if (warned) return;
-    if (ini.ReadString(section, key, "").empty()) return;
-    warned = true;
-    Log::Line(
-        "[config] key [%s] %s has been retired and is IGNORED. Smoothing is now two "
-        "keys: LocalSmoothing (default 0, applies to a tracker on this machine) and "
-        "RemoteSmoothing (default 0.15, applies to a tracker on the network). The "
-        "old value is not migrated because the semantics changed - it carried a "
-        "hidden 0.15 floor that no longer exists. Set the two new keys.",
-        section, key);
-}
-
-// Virtual key codes are published as hex and that is how the shipped INI writes
-// them, so that is how they are read: a bare 24 is 0x24, not 36. IniReader's
-// ReadHex cannot tell an absent key from an unreadable one, and both matter
-// here - the first is the common case, the second is a user who typed a key
-// name and needs to be told it is codes only.
-static bool ParseVirtualKey(const std::string& text, int& out) {
-    const char* start = text.c_str();
-    if (text.size() > 2 && start[0] == '0' && (start[1] == 'x' || start[1] == 'X')) {
-        start += 2;
-    }
-    char* end = nullptr;
-    const long value = std::strtol(start, &end, 16);
-    if (end == start) return false;
-
-    // The whole value has to be the code, not just the front of it. Half the
-    // key names a user would try are made of hex digits - "End" reads as 0xE
-    // and "Delete" as 0xDE, both perfectly bindable keys and neither the one
-    // that was asked for. Only trailing space and a comment are allowed past
-    // the number.
-    while (*end == ' ' || *end == '\t' || *end == '\r' || *end == '\n') ++end;
-    if (*end != '\0' && *end != ';' && *end != '#') return false;
-
-    out = static_cast<int>(value);
-    return true;
-}
-
-// A key the mod refused leaves that action on its previous binding rather than
-// on nothing, so a mistyped code costs the user one hotkey and says so.
-static int ReadKey(const cameraunlock::IniReader& ini, const char* key, int fallback) {
-    const std::string text = ini.ReadString("Hotkeys", key, "");
-    if (text.empty()) return fallback;
-
-    int raw = 0;
-    if (!ParseVirtualKey(text, raw)) {
-        Log::Line("[config] %s=%s is not a virtual key code (0x24, or 24 read as hex); "
-                  "keeping 0x%X", key, text.c_str(), fallback);
-        return fallback;
-    }
-    if (!IsBindableVirtualKey(raw)) {
-        Log::Line("[config] %s=%s is not a key that can be bound; keeping 0x%X",
-                  key, text.c_str(), fallback);
-        return fallback;
-    }
-    return raw;
-}
-
-static float ReadLimit(const cameraunlock::IniReader& ini, const char* key, float fallback) {
-    const float raw = ini.ReadFloat("Position", key, fallback);
-    return UseSanitized(key, raw, SanitizePositionLimit(raw, fallback));
-}
-
-void LoadConfig(const std::string& exe_dir, Config& out) {
-    const std::string path = IniPath(exe_dir);
-    cameraunlock::IniReader ini;
-    if (!ini.Open(path)) {
-        Log::Line("[config] could not open %s - using built-in defaults", path.c_str());
-        return;
-    }
-
-    bool portValid = false;
-    out.udp_port = cameraunlock::NormalizeUdpPort(
-        ini.ReadInt("Network", "UdpPort", out.udp_port), out.udp_port, portValid);
-    if (!portValid) {
-        Log::Line("[config] UdpPort is outside 1024-65535; using %u",
-                  static_cast<unsigned>(out.udp_port));
-    }
-
-    out.enable_on_startup  = ini.ReadBool ("General",  "EnableOnStartup",  out.enable_on_startup);
-
-    out.toggle_key            = ReadKey(ini, "ToggleKey",         out.toggle_key);
-    out.cycle_mode_key        = ReadKey(ini, "CycleModeKey",      out.cycle_mode_key);
-    out.chord_toggle_key      = ReadKey(ini, "ChordToggleKey",    out.chord_toggle_key);
-    out.chord_cycle_mode_key  = ReadKey(ini, "ChordCycleModeKey", out.chord_cycle_mode_key);
-
-    out.yaw_sensitivity    = ReadSensitivity(ini, "Rotation", "YawSensitivity",   out.yaw_sensitivity);
-    out.pitch_sensitivity  = ReadSensitivity(ini, "Rotation", "PitchSensitivity", out.pitch_sensitivity);
-    out.roll_sensitivity   = ReadSensitivity(ini, "Rotation", "RollSensitivity",  out.roll_sensitivity);
-    out.invert_yaw         = ini.ReadBool ("Rotation", "InvertYaw",        out.invert_yaw);
-    out.invert_pitch       = ini.ReadBool ("Rotation", "InvertPitch",      out.invert_pitch);
-    out.invert_roll        = ini.ReadBool ("Rotation", "InvertRoll",       out.invert_roll);
-    out.local_smoothing    = ReadSmoothing(ini, "Rotation", "LocalSmoothing",  out.local_smoothing,
-                                           kDefaultLocalSmoothing);
-    out.remote_smoothing   = ReadSmoothing(ini, "Rotation", "RemoteSmoothing", out.remote_smoothing,
-                                           kDefaultRemoteSmoothing);
-    WarnRetiredSmoothingKey(ini, "Rotation", "Smoothing");
-    WarnRetiredSmoothingKey(ini, "Position", "Smoothing");
-
-    out.position_enabled   = ini.ReadBool ("Position", "Enabled",          out.position_enabled);
-    out.position_sensitivity_x = ReadSensitivity(ini, "Position", "SensitivityX", out.position_sensitivity_x);
-    out.position_sensitivity_y = ReadSensitivity(ini, "Position", "SensitivityY", out.position_sensitivity_y);
-    out.position_sensitivity_z = ReadSensitivity(ini, "Position", "SensitivityZ", out.position_sensitivity_z);
-    out.invert_position_x  = ini.ReadBool ("Position", "InvertX",          out.invert_position_x);
-    out.invert_position_y  = ini.ReadBool ("Position", "InvertY",          out.invert_position_y);
-    out.invert_position_z  = ini.ReadBool ("Position", "InvertZ",          out.invert_position_z);
-    out.limit_x            = ReadLimit(ini, "LimitX",     out.limit_x);
-    out.limit_y            = ReadLimit(ini, "LimitY",     out.limit_y);
-    out.limit_z            = ReadLimit(ini, "LimitZ",     out.limit_z);
-    out.limit_z_back       = ReadLimit(ini, "LimitZBack", out.limit_z_back);
+    Config out;
+    out.udp_port = read.udp_port;
+    out.enable_on_startup = read.enable_on_startup;
+    out.toggle_key = read.toggle_key;
+    out.cycle_mode_key = read.cycle_mode_key;
+    out.chord_toggle_key = read.chord_toggle_key;
+    out.chord_cycle_mode_key = read.chord_cycle_mode_key;
+    out.yaw_sensitivity = read.yaw_sensitivity;
+    out.pitch_sensitivity = read.pitch_sensitivity;
+    out.roll_sensitivity = read.roll_sensitivity;
+    out.invert_yaw = read.invert_yaw;
+    out.invert_pitch = read.invert_pitch;
+    out.invert_roll = read.invert_roll;
+    out.local_smoothing = read.local_smoothing;
+    out.remote_smoothing = read.remote_smoothing;
+    out.position_enabled = read.position_enabled;
+    out.position_sensitivity_x = read.position_sensitivity_x;
+    out.position_sensitivity_y = read.position_sensitivity_y;
+    out.position_sensitivity_z = read.position_sensitivity_z;
+    out.invert_position_x = read.invert_position_x;
+    out.invert_position_y = read.invert_position_y;
+    out.invert_position_z = read.invert_position_z;
+    out.limit_x = read.limit_x;
+    out.limit_y = read.limit_y;
+    out.limit_z = read.limit_z;
+    out.limit_z_back = read.limit_z_back;
+    return out;
 }
 
 void WriteDefaultConfigIfMissing(const std::string& exe_dir) {

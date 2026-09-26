@@ -5,5 +5,17 @@ environments:
   default:
     channels:
     - url: https://conda.anaconda.org/conda-forge/
-    packages: {}
-packages: []
+    packages:
+      win-64:
+      - conda: https://conda.anaconda.org/conda-forge/win-64/nodejs-26.5.0-h80d1838_0.conda
+packages:
+- conda: https://conda.anaconda.org/conda-forge/win-64/nodejs-26.5.0-h80d1838_0.conda
+  sha256: 7abb526204569a6c588db2023fba02aa043592aff2f5fd7c11650356845b7615
+  md5: 3ceafecd1edea9607722ee17d358bb73
+  license: MIT
+  license_family: MIT
+  run_exports:
+    weak:
+    - nodejs >=26.5.0,<27.0a0
+  size: 34010185
+  timestamp: 1783543417685

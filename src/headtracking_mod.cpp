@@ -206,7 +206,7 @@ static void Bootstrap() {
     }
 
     WriteDefaultConfigIfMissing(exeDir);
-    LoadConfig(exeDir, g_config);
+    g_config = LoadConfig(exeDir);
     Log::Line("[boot] config: port=%u enableOnStartup=%d localSmoothing=%.2f "
               "remoteSmoothing=%.2f position=%d",
               static_cast<unsigned>(g_config.udp_port), g_config.enable_on_startup ? 1 : 0,
