@@ -15,7 +15,7 @@ Assetto Corsa EVO.
 | injector | `f7fd18f` (inside Ultimate ASI Loader v9.7.2) | zlib | Compiled into the vendored dinput8.dll |
 | miniz | 3.0.0 (inside Ultimate ASI Loader v9.7.2) | MIT | Compiled into the vendored dinput8.dll |
 | MinHook | `9fbd08743270` | BSD-2-Clause | Compiled into `AssettoCorsaEvoHeadTracking.asi` |
-| cameraunlock-core | f92be69967d9a7afc9eba55dff8fea4ec55e064c | MIT | Compiled into `AssettoCorsaEvoHeadTracking.asi` |
+| cameraunlock-core | 3f3a821aa00d5b87ecde7c4af77585ff2fc71ff5 | MIT | Compiled into `AssettoCorsaEvoHeadTracking.asi` |
 | OpenTrack | n/a | ISC | Not bundled; UDP protocol interoperability only |
 
 ---
@@ -249,7 +249,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 Git submodule at `cameraunlock-core/`, compiled into `AssettoCorsaEvoHeadTracking.asi`. Our own code,
 MIT licensed, reproduced here so the notices are complete.
 
-- Pinned commit: `f92be69967d9a7afc9eba55dff8fea4ec55e064c`
+- Pinned commit: `3f3a821aa00d5b87ecde7c4af77585ff2fc71ff5`
 
 ```
 MIT License
