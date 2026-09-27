@@ -109,6 +109,7 @@ if (-not (Test-SemanticVersion -Version $newVersion)) {
     throw "Resolved version '$newVersion' is not valid semver (X.Y.Z)."
 }
 Write-Host "Releasing v$newVersion (current v$currentVersion)" -ForegroundColor Cyan
+Assert-ReleaseNotBelowCanonicalSince -RepoRoot $projectDir -Version $newVersion
 
 # 2. Preconditions - fail fast, never prompt.
 $branch = (git rev-parse --abbrev-ref HEAD).Trim()
