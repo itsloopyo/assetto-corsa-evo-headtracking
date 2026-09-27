@@ -9,24 +9,18 @@
 #include "legacy_config/legacy_config.h"
 #include "logging.h"
 
-#include "cameraunlock/input/key_bindings.h"
-
 namespace ace_ht::config {
 
 namespace {
 
 namespace cfg = ::cameraunlock::config;
 using cfg::schema::Concept;
-using ::cameraunlock::input::FormatKeyBindings;
-using ::cameraunlock::input::KeyModifiers;
 
 constexpr const wchar_t* kIniName = L"CameraUnlock.ini";
 constexpr const wchar_t* kLegacyIniName = L"HeadTracking.ini";
 
 // data/games.json's display_name for assetto-corsa-evo.
 constexpr const char* kDisplayName = "Assetto Corsa EVO";
-
-constexpr KeyModifiers kChord = KeyModifiers::kCtrl | KeyModifiers::kShift;
 
 std::unique_ptr<cfg::ConfigOwner<Config>> g_owner;
 
@@ -82,12 +76,38 @@ cfg::ImportResult RunImport(const cfg::LegacyInput& input, Config& out) {
     // Each action had a key that fired with Ctrl and Shift not both held and a
     // chord key that fired only while both were. The reader keeps every code a
     // bindable key from 0x01 to 0xFE, so the pair is always a list of two.
-    out.toggle_key = FormatKeyBindings({{KeyModifiers::kNone, read.toggle_key}, {kChord, read.chord_toggle_key}});
+    const auto bindings = [&](int key, const char* key_name, int chord, const char* chord_name) {
+        std::string list = cfg::LegacyVirtualKeyToBindings(key, "Hotkeys", key_name, dropped);
+        const std::string chord_key = cfg::LegacyVirtualKeyToBindings(chord, "Hotkeys", chord_name, dropped);
+        if (!chord_key.empty()) list += (list.empty() ? "Ctrl+Shift+" : ", Ctrl+Shift+") + chord_key;
+        return list;
+    };
+    out.toggle_key = bindings(read.toggle_key, "ToggleKey", read.chord_toggle_key, "ChordToggleKey");
     out.cycle_tracking_mode_key =
-        FormatKeyBindings({{KeyModifiers::kNone, read.cycle_mode_key}, {kChord, read.chord_cycle_mode_key}});
+        bindings(read.cycle_mode_key, "CycleModeKey", read.chord_cycle_mode_key, "ChordCycleModeKey");
 
-    return present ? cfg::ImportResult::Imported(std::move(dropped), std::move(pose_shaping))
-                   : cfg::ImportResult::Absent(std::move(dropped), std::move(pose_shaping));
+    // A setting the player never changed from what v1.1.3 wrote follows
+    // Defaults.ini. LimitY stood for both vertical bounds, and each hotkey for
+    // its key and its chord key together.
+    const legacy::Config shipped;
+    cfg::LegacyFollowsDefaultsIni follows;
+    follows.Setting(Concept::UdpPort, read.udp_port, shipped.udp_port);
+    follows.Setting(Concept::EnableOnStartup, read.enable_on_startup, shipped.enable_on_startup);
+    follows.TrackingMode(read.position_enabled, shipped.position_enabled);
+    follows.Setting(Concept::LocalSmoothing, read.local_smoothing, shipped.local_smoothing);
+    follows.Setting(Concept::RemoteSmoothing, read.remote_smoothing, shipped.remote_smoothing);
+    follows.Setting(Concept::PositionLimitX, read.limit_x, shipped.limit_x);
+    follows.Setting(Concept::PositionLimitY, read.limit_y, shipped.limit_y);
+    follows.Setting(Concept::PositionLimitYDown, read.limit_y, shipped.limit_y);
+    follows.Setting(Concept::PositionLimitZ, read.limit_z, shipped.limit_z);
+    follows.Setting(Concept::PositionLimitZBack, read.limit_z_back, shipped.limit_z_back);
+    follows.Setting(Concept::ToggleKey,
+                    read.toggle_key == shipped.toggle_key && read.chord_toggle_key == shipped.chord_toggle_key);
+    follows.Setting(Concept::CycleTrackingModeKey, read.cycle_mode_key == shipped.cycle_mode_key &&
+                                                       read.chord_cycle_mode_key == shipped.chord_cycle_mode_key);
+
+    return present ? cfg::ImportResult::Imported(std::move(dropped), std::move(pose_shaping), follows.Concepts())
+                   : cfg::ImportResult::Absent(std::move(dropped), std::move(pose_shaping), follows.Concepts());
 }
 
 }  // namespace
