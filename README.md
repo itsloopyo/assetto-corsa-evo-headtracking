@@ -2,14 +2,12 @@
 
 ![Assetto Corsa EVO running with this mod](https://raw.githubusercontent.com/itsloopyo/assetto-corsa-evo-headtracking/main/assets/readme-clip.gif)
 
-An unofficial head tracking mod for Assetto Corsa EVO that moves the camera with your head while your wheel or controller keeps steering, driven by OpenTrack over UDP, with no VR headset required.
+An unofficial head tracking mod for Assetto Corsa EVO that moves the camera with your head while your wheel or controller keeps steering, driven by a webcam, phone, or any OpenTrack compatible tracker, with no VR headset required.
 
 ## Features
 
-- **Decoupled view and driving** - your head moves the camera; the car, the physics and every input stay untouched
-- **6DOF positional tracking** - lean into an apex, peek round the A-pillar, check your mirrors
+- **6DOF tracking** - lean into an apex, peek round the A-pillar, check your mirrors
 - **Works with any OpenTrack compatible tracker** - free options available for PC, iOS and Android
-- **Horizon-locked look** - your head turns about the world's up axis, so a banked corner does not tilt the axis you turn about and looking down at the pedals then turning pans across the floor
 - **Works in every driving view** - cockpit, dash, bonnet, fixed external and the chase cam
 
 ## Requirements
@@ -270,11 +268,11 @@ Hotkeys are written as key names, such as `End`, `PageUp`, `F9` or `Ctrl+Shift+Y
 
 ## Updating
 
-Download the new release and run `install.cmd` again. Your `CameraUnlock.ini` is kept. Updating from v1.1.3 or earlier, the first start reads your settings from `HeadTracking.ini` into a new `CameraUnlock.ini`; see [Configuration](#configuration).
+Download the new release and run `install.cmd` again. Your `CameraUnlock.ini` is kept.
 
 ## Uninstalling
 
-Run `uninstall.cmd`. This removes `AssettoCorsaEvoHeadTracking.asi` along with `HeadTracking.log` and `HeadTracking.prev.log`. The Ultimate ASI Loader is only removed if the installer put it there; use `uninstall.cmd /force` to remove it anyway. `CameraUnlock.ini` and `HeadTracking.ini` are left in place, so your settings are still there if you install again.
+Run `uninstall.cmd`. This removes `AssettoCorsaEvoHeadTracking.asi` along with `HeadTracking.log` and `HeadTracking.prev.log`. The Ultimate ASI Loader is only removed if the installer put it there; use `uninstall.cmd /force` to remove it anyway. `CameraUnlock.ini` is left in place, so your settings are still there if you install again.
 
 ## Building from Source
 
