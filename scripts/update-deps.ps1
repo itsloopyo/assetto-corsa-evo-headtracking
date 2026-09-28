@@ -7,6 +7,24 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 $ProgressPreference    = 'SilentlyContinue'
 
+# Not Get-FileHash: Windows PowerShell 5.1 autoloads it from a script module,
+# and a powershell.exe started from pwsh (GitHub Actions' shell: pwsh)
+# inherits pwsh's PSModulePath, resolves the Core-only
+# Microsoft.PowerShell.Utility first and reports the cmdlet as not recognized.
+function Get-Sha256Hex {
+    [OutputType([string])]
+    param([Parameter(Mandatory)][string]$LiteralPath)
+
+    $sha    = [System.Security.Cryptography.SHA256]::Create()
+    $stream = [System.IO.File]::OpenRead((Convert-Path -LiteralPath $LiteralPath))
+    try {
+        return [BitConverter]::ToString($sha.ComputeHash($stream)).Replace('-', '').ToLowerInvariant()
+    } finally {
+        $stream.Dispose()
+        $sha.Dispose()
+    }
+}
+
 $scriptDir  = Split-Path -Parent $MyInvocation.MyCommand.Path
 $projectDir = Split-Path -Parent $scriptDir
 
@@ -40,7 +58,7 @@ try {
         $out = [System.IO.File]::Create($tempDll)
         try { $in = $dllEntry.Open(); try { $in.CopyTo($out) } finally { $in.Dispose() } } finally { $out.Dispose() }
 
-        $dllSha = (Get-FileHash -Path $tempDll -Algorithm SHA256).Hash.ToLower()
+        $dllSha = Get-Sha256Hex -LiteralPath $tempDll
 
         # Upstream unchanged: leave the tree alone. Without this the README's
         # FetchedAt line churns on every run, so a routine no-op refresh looks
@@ -48,7 +66,7 @@ try {
         $readmePath  = Join-Path $vendorAsiDir 'README.md'
         $licensePath = Join-Path $vendorAsiDir 'LICENSE'
         if ((Test-Path $vendorAsiDll) -and (Test-Path $readmePath) -and (Test-Path $licensePath) -and
-            (Get-FileHash -Path $vendorAsiDll -Algorithm SHA256).Hash.ToLower() -eq $dllSha) {
+            (Get-Sha256Hex -LiteralPath $vendorAsiDll) -eq $dllSha) {
             Write-Host "  no change (tag=$($meta.Tag) sha256=$($dllSha.Substring(0,12))... matches vendored copy)" -ForegroundColor DarkGray
             return
         }
