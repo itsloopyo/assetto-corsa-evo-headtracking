@@ -72,7 +72,9 @@ if (Test-GitTagExists -Tag "v$newVersion") { throw "Tag v$newVersion already exi
 #    clean tree instead of stranding a half-applied version bump with no tag.
 Write-Host "Generating CHANGELOG..." -ForegroundColor Cyan
 try {
-    New-ChangelogFromCommits -ChangelogPath $changelogPath -Version $newVersion -Maintenance:$Force | Out-Null
+    New-ChangelogFromCommits -ChangelogPath $changelogPath -Version $newVersion `
+        -ArtifactPaths @('src/', 'cameraunlock-core/', 'scripts/install.cmd', 'scripts/uninstall.cmd') `
+        -Maintenance:$Force | Out-Null
 } catch {
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
     if (-not $Force) {
