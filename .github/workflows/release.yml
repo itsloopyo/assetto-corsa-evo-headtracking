@@ -12,7 +12,7 @@ on:
 
 jobs:
   release:
-    uses: itsloopyo/cameraunlock-core/.github/workflows/release-mod.yml@435915a8a3d8e1b799cc169b74f1fcf72b9534e7
+    uses: itsloopyo/cameraunlock-core/.github/workflows/release-mod.yml@a03c24290fae3a9c61f67adcb7c5ba4eedf69f20
     with:
       project-name: 'Assetto Corsa EVO Head Tracking'
       version-source: regex

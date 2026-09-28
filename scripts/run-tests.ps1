@@ -7,7 +7,8 @@
 [CmdletBinding()]
 param(
     [ValidateSet('Release', 'Debug')][string]$Config = 'Debug',
-    [switch]$NoRun
+    [switch]$NoRun,
+    [ValidateSet('all', 'unit', 'differential')][string]$Suite = 'all'
 )
 
 Set-StrictMode -Version Latest
@@ -23,7 +24,8 @@ cmake --build $buildDir --config $Config --target ace_tests
 if ($LASTEXITCODE -ne 0) { throw "Test build failed ($LASTEXITCODE)" }
 if ($NoRun) { return }
 
-ctest --test-dir $buildDir -C $Config --output-on-failure
+$labels = @{ all = @(); unit = @('-LE', 'differential'); differential = @('--no-tests=error', '-L', 'differential') }[$Suite]
+ctest --test-dir $buildDir -C $Config --output-on-failure @labels
 if ($LASTEXITCODE -ne 0) { throw "Tests failed ($LASTEXITCODE)" }
 
 Write-Host 'All tests passed' -ForegroundColor Green

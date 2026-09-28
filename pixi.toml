@@ -34,7 +34,9 @@ clean-all = { cmd = """
 # canonical config lint over every file that test migrated. Builds in
 # build-tests/ so the packaged build/ tree never contains a test binary. Needs no
 # game install.
-test = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/run-tests.ps1" }
+test-unit = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/run-tests.ps1 -Suite unit" }
+test-differential = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/run-tests.ps1 -Suite differential" }
+test = { depends-on = ["test-unit", "test-differential"] }
 build-tests = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/run-tests.ps1 -NoRun" }
 
 # Rewrites HeadTracking.ini, the committed CameraUnlock.ini (the path core's
@@ -46,9 +48,9 @@ render-config = { cmd = "build-tests/tests/Debug/ace_config_tests.exe --render-c
 # Bump vendored Ultimate ASI Loader copy. Manual; commit the result.
 update-deps = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/update-deps.ps1" }
 
-# Depends on test, so no ZIP is built from a tree whose tests or config
-# differential test fail.
-package = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1", depends-on = ["build", "test"] }
+# Depends on test-unit, so no ZIP is built from a tree whose unit tests fail.
+# The config differential test runs on the release paths.
+package = { cmd = "powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1", depends-on = ["build", "test-unit"] }
 
 # Dev loop: build, then copy the .asi + vendored loader straight into the
 # detected game folder. install.cmd is the end-user path and is not run here -
