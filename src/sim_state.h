@@ -46,6 +46,4 @@ const char* SimStatusName(SimStatus status);
 // fatal. Call from the render thread.
 SimStatus ReadSimStatus();
 
-void CloseSimState();
-
 }  // namespace ace_ht

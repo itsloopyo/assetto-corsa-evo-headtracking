@@ -46,6 +46,20 @@ static std::atomic<bool> g_active{false};
 
 static std::atomic<long long> g_frameCounter{0};
 
+// The session is not safe to change from two threads: SetMode resets the
+// position interpolator and processor, which Update is writing on the render
+// thread. So the hotkey thread only names the mode it wants, and the render
+// thread applies it between updates. The hotkey steps from the APPLIED mode,
+// so two presses before a frame are one step, and what it saves is exactly
+// what the render thread will apply.
+static std::atomic<cameraunlock::TrackingMode> g_desiredMode{cameraunlock::TrackingMode::RotationAndPosition};
+static std::atomic<cameraunlock::TrackingMode> g_appliedMode{cameraunlock::TrackingMode::RotationAndPosition};
+
+// The session, the frame clock and the sim page reader are unsynchronised and
+// assume the engine computes cameras on one thread. The first thread to call
+// in is recorded, and any other is reported once.
+static std::atomic<DWORD> g_cameraThread{0};
+
 // The last connection locality the log reported. Only the render thread touches
 // these, and only through LogConnectionLocality below.
 static bool g_remoteConnection = false;
@@ -70,7 +84,10 @@ static void ApplyConfigToPipeline(const Config& config, Session& session) {
     session.SetLocalSmoothing(config.local_smoothing);
     session.SetRemoteSmoothing(config.remote_smoothing);
 
-    session.SetMode(config::StartupTrackingMode(config));
+    const cameraunlock::TrackingMode mode = config::StartupTrackingMode(config);
+    session.SetMode(mode);
+    g_appliedMode.store(mode);
+    g_desiredMode.store(mode);
 }
 
 // The session re-reads the receiver's source-address check every update, so a
@@ -106,12 +123,35 @@ static const char* ModeName(cameraunlock::TrackingMode mode) {
     throw std::logic_error("TrackingMode outside its three modes");
 }
 
-// Runs on the hotkey poller's thread: the session takes the new mode first, then
-// CameraUnlock.ini saves it, so the next start begins in it.
+// Runs on the hotkey poller's thread. The render thread applies the mode on its
+// next camera compute (ApplyDesiredMode), and CameraUnlock.ini saves it so the
+// next start begins in it. Same order as HeadTrackingSession::CycleMode.
 static void CycleTrackingMode() {
-    const cameraunlock::TrackingMode mode = g_session.CycleMode();
-    Log::Line("[input] tracking mode: %s", ModeName(mode));
-    config::SaveTrackingMode(mode);
+    const auto next = static_cast<cameraunlock::TrackingMode>((static_cast<int>(g_appliedMode.load()) + 1) % 3);
+    g_desiredMode.store(next);
+    Log::Line("[input] tracking mode: %s", ModeName(next));
+    config::SaveTrackingMode(next);
+}
+
+// Render thread.
+static void ApplyDesiredMode() {
+    const cameraunlock::TrackingMode desired = g_desiredMode.load();
+    if (desired == g_appliedMode.load(std::memory_order_relaxed)) return;
+    g_session.SetMode(desired);
+    g_appliedMode.store(desired);
+}
+
+static void CheckCameraThread() {
+    const DWORD self = GetCurrentThreadId();
+    DWORD owner = g_cameraThread.load(std::memory_order_relaxed);
+    if (owner == self) return;
+    if (owner == 0 && g_cameraThread.compare_exchange_strong(owner, self)) return;
+
+    static std::atomic<bool> reported{false};
+    if (!reported.exchange(true)) {
+        Log::Line("[camera] camera computed on thread %lu, after thread %lu; the pipeline "
+                  "assumes one camera thread", self, owner);
+    }
 }
 
 // The table's hotkey codec lets only a list ParseKeyBindings reads into the
@@ -209,6 +249,9 @@ static void LogFirstFrames(long long frame, const float* transform, bool haveRot
 void OnCameraTransformComputed(float* transform) {
     if (!g_active.load(std::memory_order_relaxed)) return;
 
+    CheckCameraThread();
+    ApplyDesiredMode();
+
     // Several drivable cameras can compute in the same frame. Splitting a
     // frame's delta across those calls is harmless: the smoothing and
     // interpolation are both exponential in dt, so the total advance per frame
@@ -242,7 +285,8 @@ void OnCameraTransformComputed(float* transform) {
     // nothing in the log ever says the head pose reached the camera. Ahead of
     // the tracking-enabled gate, or one press of End hides the evidence.
     static std::atomic<bool> poseReachedLogged{false};
-    if (haveRotation && !poseReachedLogged.exchange(true, std::memory_order_relaxed)) {
+    if (haveRotation && !poseReachedLogged.load(std::memory_order_relaxed) &&
+        !poseReachedLogged.exchange(true, std::memory_order_relaxed)) {
         Log::Line("[camera] head pose reached the camera hook on frame %lld: "
                   "yaw=%.2f pitch=%.2f roll=%.2f",
                   frame, pose.yaw, pose.pitch, pose.roll);
@@ -259,16 +303,6 @@ void Initialize() {
     // Detached: DllMain runs under the loader lock, so the bootstrap (which
     // opens a log, reads the INI and resolves RTTI) cannot run here.
     std::thread(Bootstrap).detach();
-}
-
-void Shutdown() {
-    g_active.store(false);
-    UninstallCameraHook();
-    g_hotkeys.Stop();
-    g_receiver.Stop();
-    CloseSimState();
-    Log::Line("[boot] shutdown");
-    Log::Close();
 }
 
 }  // namespace ace_ht

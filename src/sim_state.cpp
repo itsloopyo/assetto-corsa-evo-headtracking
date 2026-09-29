@@ -21,7 +21,6 @@ static constexpr unsigned kStatusIndex = 1;
 // path for the whole time the player is in the menus.
 static constexpr ULONGLONG kRetryIntervalMs = 1000;
 
-static HANDLE g_mapping = nullptr;
 static const volatile int* g_header = nullptr;
 static ULONGLONG g_nextRetryTick = 0;
 
@@ -48,7 +47,9 @@ static void TryMapPage() {
         return;
     }
 
-    g_mapping = mapping;
+    // The view keeps the section alive on its own, and it is never unmapped:
+    // the page is read on every camera compute for the rest of the process.
+    CloseHandle(mapping);
     g_header = static_cast<const volatile int*>(view);
     Log::Line("[sim] %s mapped; head tracking follows the session state.", kGraphicsPageName);
 }
@@ -70,17 +71,6 @@ SimStatus ReadSimStatus() {
         if (g_header == nullptr) return SimStatus::Unknown;
     }
     return SimStatusFromRaw(g_header[kStatusIndex]);
-}
-
-void CloseSimState() {
-    if (g_header != nullptr) {
-        UnmapViewOfFile(const_cast<int*>(g_header));
-        g_header = nullptr;
-    }
-    if (g_mapping != nullptr) {
-        CloseHandle(g_mapping);
-        g_mapping = nullptr;
-    }
 }
 
 }  // namespace ace_ht

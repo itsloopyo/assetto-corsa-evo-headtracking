@@ -65,18 +65,9 @@ static const CameraClass kCameraClasses[] = {
 static constexpr int kCameraClassCount =
     static_cast<int>(sizeof(kCameraClasses) / sizeof(kCameraClasses[0]));
 
-// What uninstall needs to put the engine back exactly as it found it.
-struct PatchedSlot {
-    void** address;
-    ComputeFn original;
-    const char* className;
-};
-static PatchedSlot g_patched[kCameraClassCount];
-static int g_patchedCount = 0;
-
-// Vtables live in a read-only section, so both patching and restoring go
-// through the same unprotect / write / reprotect. Returns false if the page
-// could not be made writable, in which case nothing was written.
+// Vtables live in a read-only section, so the write goes through unprotect /
+// write / reprotect. Returns false if the page could not be made writable, in
+// which case nothing was written.
 static bool WriteSlot(void** slot, void* value, const char* className) {
     DWORD oldProtect = 0;
     if (!VirtualProtect(slot, sizeof(void*), PAGE_READWRITE, &oldProtect)) {
@@ -112,9 +103,6 @@ static bool PatchSlot(const CameraClass& cls, int slotIndex) {
     *cls.original = original;
     if (!WriteSlot(slot, cls.detour, cls.name)) return false;
 
-    g_patched[g_patchedCount] = { slot, original, cls.name };
-    ++g_patchedCount;
-
     Log::Line("[camera] %s: vtable 0x%p slot %d patched (original 0x%p)",
               cls.name, reinterpret_cast<void*>(info.vtable_address), slotIndex,
               reinterpret_cast<void*>(original));
@@ -133,19 +121,12 @@ bool InstallCameraHook() {
     g_transformByteOffset = profile.Offsets.camera_out_transform;
 
     const int slotIndex = profile.Offsets.camera_compute_slot;
+    int patched = 0;
     for (int i = 0; i < kCameraClassCount; ++i) {
-        PatchSlot(kCameraClasses[i], slotIndex);
+        if (PatchSlot(kCameraClasses[i], slotIndex)) ++patched;
     }
-    Log::Line("[camera] %d of %d camera vtables patched", g_patchedCount, kCameraClassCount);
-    return g_patchedCount > 0;
-}
-
-void UninstallCameraHook() {
-    for (int i = 0; i < g_patchedCount; ++i) {
-        WriteSlot(g_patched[i].address, reinterpret_cast<void*>(g_patched[i].original),
-                  g_patched[i].className);
-    }
-    g_patchedCount = 0;
+    Log::Line("[camera] %d of %d camera vtables patched", patched, kCameraClassCount);
+    return patched > 0;
 }
 
 }  // namespace ace_ht

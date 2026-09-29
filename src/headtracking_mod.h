@@ -3,7 +3,6 @@
 namespace ace_ht {
 
 void Initialize();
-void Shutdown();
 
 // Called from the camera detour once the engine has computed a camera for this
 // frame. `transform` points at the freshly written camera transform inside the
