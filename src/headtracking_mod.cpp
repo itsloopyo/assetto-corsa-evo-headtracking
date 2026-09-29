@@ -46,15 +46,6 @@ static std::atomic<bool> g_active{false};
 
 static std::atomic<long long> g_frameCounter{0};
 
-// The session is not safe to change from two threads: SetMode resets the
-// position interpolator and processor, which Update is writing on the render
-// thread. So the hotkey thread only names the mode it wants, and the render
-// thread applies it between updates. The hotkey steps from the APPLIED mode,
-// so two presses before a frame are one step, and what it saves is exactly
-// what the render thread will apply.
-static std::atomic<cameraunlock::TrackingMode> g_desiredMode{cameraunlock::TrackingMode::RotationAndPosition};
-static std::atomic<cameraunlock::TrackingMode> g_appliedMode{cameraunlock::TrackingMode::RotationAndPosition};
-
 // The session, the frame clock and the sim page reader are unsynchronised and
 // assume the engine computes cameras on one thread. The first thread to call
 // in is recorded, and any other is reported once.
@@ -84,10 +75,7 @@ static void ApplyConfigToPipeline(const Config& config, Session& session) {
     session.SetLocalSmoothing(config.local_smoothing);
     session.SetRemoteSmoothing(config.remote_smoothing);
 
-    const cameraunlock::TrackingMode mode = config::StartupTrackingMode(config);
-    session.SetMode(mode);
-    g_appliedMode.store(mode);
-    g_desiredMode.store(mode);
+    session.SetMode(config::StartupTrackingMode(config));
 }
 
 // The session re-reads the receiver's source-address check every update, so a
@@ -123,22 +111,13 @@ static const char* ModeName(cameraunlock::TrackingMode mode) {
     throw std::logic_error("TrackingMode outside its three modes");
 }
 
-// Runs on the hotkey poller's thread. The render thread applies the mode on its
-// next camera compute (ApplyDesiredMode), and CameraUnlock.ini saves it so the
-// next start begins in it. Same order as HeadTrackingSession::CycleMode.
+// Runs on the hotkey poller's thread, which CycleMode allows: it only writes the
+// session's atomic mode, and the next Update applies it on the render thread.
+// CameraUnlock.ini then saves it, so the next start begins in it.
 static void CycleTrackingMode() {
-    const auto next = static_cast<cameraunlock::TrackingMode>((static_cast<int>(g_appliedMode.load()) + 1) % 3);
-    g_desiredMode.store(next);
-    Log::Line("[input] tracking mode: %s", ModeName(next));
-    config::SaveTrackingMode(next);
-}
-
-// Render thread.
-static void ApplyDesiredMode() {
-    const cameraunlock::TrackingMode desired = g_desiredMode.load();
-    if (desired == g_appliedMode.load(std::memory_order_relaxed)) return;
-    g_session.SetMode(desired);
-    g_appliedMode.store(desired);
+    const cameraunlock::TrackingMode mode = g_session.CycleMode();
+    Log::Line("[input] tracking mode: %s", ModeName(mode));
+    config::SaveTrackingMode(mode);
 }
 
 static void CheckCameraThread() {
@@ -250,7 +229,6 @@ void OnCameraTransformComputed(float* transform) {
     if (!g_active.load(std::memory_order_relaxed)) return;
 
     CheckCameraThread();
-    ApplyDesiredMode();
 
     // Several drivable cameras can compute in the same frame. Splitting a
     // frame's delta across those calls is harmless: the smoothing and
