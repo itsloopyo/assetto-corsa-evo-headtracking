@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.1] - 2026-09-29
+
+### Fixed
+
+- bump cameraunlock-core so the tracker receiver sleeps between packets instead of waking every millisecond
+
 ## [1.2.0] - 2026-09-29
 
 ### Added
